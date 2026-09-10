@@ -1,0 +1,33 @@
+﻿{
+    "timestamp":  "2026-09-08 19:54:38",
+    "qqq":  {
+                "symbol":  "QQQ",
+                "price":  718.36,
+                "deduct60_price":  717.12,
+                "deduct_dist_pct":  0.17,
+                "state":  "NORMAL_LONG",
+                "label":  "NORMAL_LONG",
+                "action":  "QQQ is healthy. Hold 100% spot position.",
+                "hedge_ratio":  0
+            },
+    "spy":  {
+                "symbol":  "SPY",
+                "price":  765.96,
+                "deduct60_price":  737.76,
+                "deduct_dist_pct":  3.82,
+                "state":  "NORMAL_LONG",
+                "label":  "NORMAL_LONG",
+                "action":  "SPY is healthy. Hold 100% spot position.",
+                "hedge_ratio":  0
+            },
+    "market":  {
+                   "vix":  15.7,
+                   "vvix":  88.7,
+                   "skew":  148.9,
+                   "dix":  46.2,
+                   "sahm_val":  0.2,
+                   "hy_spread":  3.2,
+                   "recession_active":  false,
+                   "recession_str":  "No Recession Risk"
+               }
+}

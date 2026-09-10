@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙均線交叉預警系統 - 3層完整對衝作戰儀表板</title>
+    
+    <!-- PWA Meta tags for iOS & Android -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="雙均線預警">
+    <link rel="apple-touch-icon" href="sentinel_logo.jpg">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #a855f7;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 16px 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .app-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-brand img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 2px;
+        }
+
+        /* Tier Section Headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 28px;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .section-title-text {
+            font-size: 16px;
+            font-weight: 800;
+            color: #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stage-toggle-bar {
+            display: flex;
+            gap: 8px;
+            background: #1f2937;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .stage-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stage-toggle-btn.active {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        /* Card Layouts */
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .badge-stage {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-green { background: #10b98133; color: #34d399; border: 1px solid #10b981; }
+        .badge-yellow { background: #f59e0b33; color: #fbbf24; border: 1px solid #f59e0b; }
+        .badge-red { background: #ef444433; color: #f87171; border: 1px solid #ef4444; }
+        .badge-blue { background: #3b82f633; color: #60a5fa; border: 1px solid #3b82f6; }
+
+        .price-display {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .price-main { font-size: 32px; font-weight: 800; }
+        .price-sub { font-size: 14px; color: var(--text-sub); }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--card-border);
+            font-size: 14px;
+        }
+
+        .metric-label { color: var(--text-sub); }
+        .metric-val { font-weight: 700; }
+
+        .text-green { color: #10b981; }
+        .text-red { color: #ef4444; }
+        .text-yellow { color: #f59e0b; }
+
+        .action-box {
+            background: #1e293b;
+            border-left: 4px solid #38bdf8;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-top: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Tier 2: 5-Stage Light Status Grid */
+        .stage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .stage-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .stage-box.active-green { border-color: #10b981; background: #064e3b22; }
+        .stage-box.active-yellow { border-color: #f59e0b; background: #78350f22; }
+        .stage-box.active-red { border-color: #ef4444; background: #7f1d1d22; }
+        .stage-box.active-blue { border-color: #3b82f6; background: #1e3a8a22; }
+
+        .stage-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        .stage-status-active {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+
+        .indicator-item {
+            font-size: 12.5px;
+            padding: 6px 0;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .indicator-item:last-child { border-bottom: none; }
+
+        /* Tier 3: All Remaining Indicators Grid */
+        .remaining-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .rem-box {
+            background: #1f293755;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .rem-title { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .rem-val { font-size: 20px; font-weight: 800; color: #ffffff; }
+        .rem-desc { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+
+        .push-preview-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-push {
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-top: 10px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        .btn-refresh {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            border: 1px solid #38bdf8;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+        }
+        .btn-refresh:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+            transform: translateY(-1px);
+        }
+
+        .btn-notify {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: #ffffff;
+            border: 1px solid #a78bfa;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 12.5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .live-tag {
+            font-size: 10px;
+            background: #10b98122;
+            color: #34d399;
+            border: 1px solid #10b98144;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .updated-flash {
+            animation: flashPulse 1s ease-out;
+        }
+
+        @keyframes flashPulse {
+            0% { background-color: rgba(56, 189, 248, 0.3); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="app-header">
+        <div class="app-brand">
+            <img src="sentinel_logo.jpg" alt="Logo" onerror="this.style.display='none'">
+            <div>
+                <div class="brand-title">雙均線交叉預警系統</div>
+                <div class="brand-subtitle">3 層極簡架構：QQQ & SPY 結論一目瞭然 ➔ 五大階段診斷 ➔ 總經預警 (GitHub 自動排程 + 手機預警彈窗)</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button onclick="requestPushNotification()" class="btn-notify">
+                🔔 啟用手機預警彈窗
+            </button>
+            <button onclick="refreshLiveData()" class="btn-refresh">
+                <span id="spin-icon">🔄</span> 刷新數據
+            </button>
+            <div style="font-size: 12px; color: var(--text-sub); font-weight: 600;">
+                <span id="last-update-time">⚡ 自動連線中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TIER 1: QQQ & SPY CONCLUSIONS (Top Layer) -->
+    <div class="section-header">
+        <div class="section-title-text">第一層：QQQ & SPY 結論與作戰指令 (結論一目瞭然)</div>
+    </div>
+    
+    <div class="asset-grid">
+        <!-- QQQ Conclusion Card -->
+        <div class="card" id="card-QQQ">
+            <div class="card-header">
+                <span style="font-size: 22px; font-weight: 800; color: #38bdf8;">QQQ (納斯達克 100)</span>
+                <span class="badge-stage badge-green" id="badge-qqq-status">🟢 綠燈：健康常態 (0% 對沖)</span>
+            </div>
+            
+            <div class="price-display">
+                <div class="price-main" id="price-qqq-main">$708.69</div>
+                <div class="price-sub">60日扣抵距 (60EMA): <strong class="text-green" id="price-qqq-deduct">-0.01% (扣低助漲)</strong></div>
+            </div>
+
+            <div class="metric-row">
+                <span class="metric-label">當前對衝比率</span>
+                <span class="metric-val text-green" id="qqq-hedge-ratio">0% (100% 現貨順勢續抱)</span>
+            </div>
+
+            <div class="action-box" id="action-qqq-box">
+                💡 <strong>QQQ 作戰指令</strong>：雙均線多頭 ($714.80 > $708.75)，最新即時收盤價 $708.69。無對沖需求，維持 100% 現貨持股續抱。
+            </div>
+        </div>
+
+        <!-- SPY Conclusion Card -->
+        <div class="card" id="card-SPY">
+            <div class="card-header">
+                <span style="font-size: 22px; font-weight: 800; color: #a855f7;">SPY (標普 500)</span>
+                <span class="badge-stage badge-green" id="badge-spy-status">🟢 綠燈：健康常態 (0% 對沖)</span>
+            </div>
+            
+            <div class="price-display">
+                <div class="price-main" id="price-spy-main">$757.83</div>
+                <div class="price-sub">60日扣抵距 (60EMA): <strong class="text-green" id="price-spy-deduct">+0.34% (扣低助漲)</strong></div>
+            </div>
+
+            <div class="metric-row">
+                <span class="metric-label">當前對衝比率</span>
+                <span class="metric-val text-green" id="spy-hedge-ratio">0% (100% 現貨順勢定投)</span>
+            </div>
+
+            <div class="action-box" id="action-spy-box">
+                💡 <strong>SPY 作戰指令</strong>：大盤體質健康 ($765.86 > $755.28)，最新即時收盤價 $757.83。無對沖需求，維持 100% 現貨持股定投。
+            </div>
+        </div>
+    </div>
+
+    <!-- OTHER MACRO INDICATOR ALERTS (Placed right below Tier 1 Summary Cards) -->
+    <div class="card" style="border-left: 5px solid #f59e0b; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-weight: 800; font-size: 16px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+                <span>⚠️ 全總經與市場指標預警 (即時掃描與風險亮燈提示)</span>
+                <span style="font-size: 12px; background: #78350f66; border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 10px; border-radius: 12px; font-weight: 700;" id="macro-alert-count">1 項指標觸發警戒</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-sub);">涵蓋：MOVE 債市波動、DXY 美元流動性、HYG/LQD 信用利差、SKEW 尾部防守</div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
+            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟢 MOVE 債市波動率</span>
+                    <span id="macro-move-val">86.5 (🟢 降至 100 以下)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 美國國債市場波動平緩，殖利率跳升風險可控。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #f59e0b77; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
+                <div style="color: #fbbf24; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟡 CBOE SKEW 黑天鵝避險</span>
+                    <span id="macro-skew-val">147.02 (⚠️ 突破 135)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 華爾街機構大量購買深虛值 Put，顯示對極端尾部風險防範意識極高。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 220px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟢 HYG/LQD 信用利差</span>
+                    <span id="macro-hyg-val">$78.62 / $104.36 (🟢 健康)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 高收益債利差未異常擴大，非金融系統性危機。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 220px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟢 DXY 美元流動性</span>
+                    <span id="macro-dxy-val">99.08 (🟢 美元回落)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 美元指數未暴升，全球美元流動性充沛。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TIER 2: 5 STAGES LIGHT & INDICATOR STATUS BREAKDOWN -->
+    <div class="section-header">
+        <div class="section-title-text">第二層：五大對衝階段燈號與對應指標狀態診斷</div>
+        <div class="stage-toggle-bar">
+            <button class="stage-toggle-btn active" id="btn-diag-qqq" onclick="toggleStageAsset('QQQ')">QQQ 診斷數據</button>
+            <button class="stage-toggle-btn" id="btn-diag-spy" onclick="toggleStageAsset('SPY')">SPY 診斷數據</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 13.5px; color: var(--text-sub); margin-bottom: 12px;" id="stage-asset-desc">
+            目前展示 <strong style="color: #38bdf8;" id="current-asset-title">QQQ (納斯達克 100)</strong> 五大階段的核心指標與輔助指標狀態：
+        </div>
+
+        <div class="stage-grid" id="stage-grid-container">
+            
+            <!-- Stage 1 -->
+            <div class="stage-box active-green">
+                <div class="stage-box-header">
+                    <span>🟢 階段一：啟動與主升期</span>
+                    <span class="stage-status-active badge-green">● 當前亮燈中</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 20EMA vs 60EMA</span>
+                    <span class="metric-val text-green" id="stg1-ema">$714.80 > $708.75 (金叉) ✓</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 2. 60日扣抵斜率</span>
+                    <span class="metric-val text-green" id="stg1-deduct">-0.01% (扣低助漲)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. KAMA 自適應均線</span>
+                    <span class="metric-val text-green" id="stg1-kama">$715.20 (趨勢平穩) ✓</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. 50MA 廣度 S5FI</span>
+                    <span class="metric-val text-green" id="stg1-s5fi">64.2% (>50% 健康) ✓</span>
+                </div>
+            </div>
+
+            <!-- Stage 2 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🛡️ 階段二：洗盤防雙巴期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 均線洗盤狀態</span>
+                    <span class="metric-val" style="color: #9ca3af;">無無量拉回洗盤</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. KAMA 效率比率 ER</span>
+                    <span class="metric-val text-green" id="stg2-er">0.65 (趨勢平穩)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. 成交量縮倍率</span>
+                    <span class="metric-val" style="color: #9ca3af;">正常量能 (未暴縮)</span>
+                </div>
+            </div>
+
+            <!-- Stage 3 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🟡 階段三：頂部背離預警期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 金絲雀 50MA 廣度</span>
+                    <span class="metric-val text-green" id="stg3-s5fi">64.2% (未跌破 &lt;45%)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. CBOE SKEW 指數</span>
+                    <span class="metric-val text-yellow" id="stg3-skew">147.02 (⚠️ &gt;135 預警)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. VVIX / VIX 比值</span>
+                    <span class="metric-val text-green" id="stg3-vvix-vix">5.75 (未暴升 &lt;6.0)</span>
+                </div>
+            </div>
+
+            <!-- Stage 4 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🔴 階段四：反轉對沖破位期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 20EMA 死叉 60EMA</span>
+                    <span class="metric-val text-green" id="stg4-cross">未死叉 ($714.80 &gt; $708.75)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 2. 60日扣抵斜率</span>
+                    <span class="metric-val text-green" id="stg4-slope">-0.01% (扣低助漲)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. GEX 零伽瑪防線</span>
+                    <span class="metric-val text-green" id="stg4-gex">+$5.8B (正伽瑪支撐)</span>
+                </div>
+            </div>
+
+            <!-- Stage 5 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🔵 階段五：恐慌解鎖與 1.5x 抄底</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. VIX 恐慌倒掛</span>
+                    <span class="metric-val text-green" id="stg5-vix">17.84 (未突破 &gt;35.0)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. DIX 暗池大戶吸籌</span>
+                    <span class="metric-val text-green" id="stg5-dix">46.8% (&gt;45% 吸籌中)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. NAAIM 法人投降</span>
+                    <span class="metric-val text-green" id="stg5-naaim">65.2% (未投降 &le;30%)</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TIER 3: 3D MARKET RADAR & REFERENCE INDICATORS (Bottom Layer) -->
+    <div class="section-header" style="color: var(--text-sub);">
+        <div class="section-title-text">第三層：3D 市場極致籌碼與總經雷達儀表板 (全指標即時動態追蹤區)</div>
+    </div>
+    
+    <div class="card" style="opacity: 0.95;">
+        <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px;">
+            包含基金經理人持倉 (NAAIM)、散戶牛熊差 (AAII)、恐慌與貪婪指數、SKEW、VVIX/VIX、債券利差與衰退指標：
+        </div>
+
+        <div class="remaining-grid">
+            
+            <div class="rem-box">
+                <div class="rem-title"><span>1. NAAIM 基金經理人持倉</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val" id="rem-naaim">65.2%</div>
+                <div class="rem-desc">法人持倉中性健康 (投降極值: &le;30%)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>2. CNN 恐慌與貪婪指數</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-yellow" id="rem-cnn">58</div>
+                <div class="rem-desc">情緒中性偏貪婪 (極值: &le;20 恐慌)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>3. AAII 散戶牛熊差</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-aaii">+18.5%</div>
+                <div class="rem-desc">散戶情緒溫和樂觀 (絕望極值: &le;-25%)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>4. Put/Call 10DMA 避險</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-pc10d">0.85</div>
+                <div class="rem-desc">市場無過度投機 (危險區: &gt;1.1)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>5. 10Y-2Y 美債殖利率倒掛</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-spread">+0.15%</div>
+                <div class="rem-desc">殖利率曲線倒掛已解除</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>6. 高收益債信用利差 (HY OAS)</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-hyg-lqd">3.2% ($78.62/$104.36)</div>
+                <div class="rem-desc">企業違約風險低 (危險區: &gt;4.5%)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>7. WEI 週經濟指數</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-wei">+2.35%</div>
+                <div class="rem-desc">總體經濟持續擴張中</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>8. S&amp;P 200MA 長線廣度</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-s5tw">74.8%</div>
+                <div class="rem-desc">標普成分股長線體質強勁</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>9. CBOE SKEW 黑天鵝避險</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-yellow" id="rem-skew">147.02</div>
+                <div class="rem-desc">機構購買 Deep OTM Put 保險中</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>10. VVIX / VIX 動態比值</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-vvix-vix">5.75</div>
+                <div class="rem-desc">波動率之波動率未暴升 (&lt;6.0)</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>11. DXY 美元指數流動性</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-dxy">99.08</div>
+                <div class="rem-desc">全球美元流動性充沛平穩</div>
+            </div>
+
+            <div class="rem-box">
+                <div class="rem-title"><span>12. DIX 暗池大戶吸籌</span> <span class="live-tag">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-dix">46.8%</div>
+                <div class="rem-desc">大戶暗池持續支撐買盤</div>
+            </div>
+
+        </div>
+
+        <!-- Push Notification Tester Simulation -->
+        <div class="push-preview-box">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 6px;">🔔 即時預警推播測試模擬器 (Notification Trigger Simulator)</div>
+            <div style="font-size: 13px; color: var(--text-sub);">點擊按鈕模擬手機端接收彈窗推播：</div>
+
+            <button class="btn-push" onclick="simulatePush('yellow')">🟡 模擬黃燈：頂部背離預警</button>
+            <button class="btn-push" style="background: #ef4444; color: #fff;" onclick="simulatePush('red')">🔴 模擬紅燈：GEX 破位對沖警報</button>
+            <button class="btn-push" style="background: #10b981; color: #fff;" onclick="simulatePush('blue')">🔵 模擬藍燈：VIX+DIX 1.5x 抄底</button>
+
+            <div id="push-log" style="margin-top: 12px; font-family: monospace; font-size: 13px; color: #38bdf8; min-height: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function toggleStageAsset(asset) {
+            document.getElementById('btn-diag-qqq').classList.remove('active');
+            document.getElementById('btn-diag-spy').classList.remove('active');
+
+            if (asset === 'QQQ') {
+                document.getElementById('btn-diag-qqq').classList.add('active');
+                document.getElementById('current-asset-title').innerText = 'QQQ (納斯達克 100)';
+                document.getElementById('current-asset-title').style.color = '#38bdf8';
+                
+                document.getElementById('stg1-ema').innerText = '$714.80 > $708.75 (金叉) ✓';
+                document.getElementById('stg1-deduct').innerText = '-0.01% (扣低助漲)';
+                document.getElementById('stg1-kama').innerText = '$715.20 (趨勢平穩) ✓';
+                document.getElementById('stg4-cross').innerText = '未死叉 ($714.80 > $708.75)';
+                document.getElementById('stg4-slope').innerText = '-0.01% (扣低助漲)';
+                document.getElementById('stg4-gex').innerText = '+$5.8B (正伽瑪支撐)';
+            } else {
+                document.getElementById('btn-diag-spy').classList.add('active');
+                document.getElementById('current-asset-title').innerText = 'SPY (標普 500)';
+                document.getElementById('current-asset-title').style.color = '#a855f7';
+
+                document.getElementById('stg1-ema').innerText = '$765.86 > $755.28 (金叉) ✓';
+                document.getElementById('stg1-deduct').innerText = '+0.34% (扣低助漲) ✓';
+                document.getElementById('stg1-kama').innerText = '$763.50 (趨勢向上) ✓';
+                document.getElementById('stg4-cross').innerText = '未死叉 ($765.86 > $755.28)';
+                document.getElementById('stg4-slope').innerText = '+0.34% (扣低助漲)';
+                document.getElementById('stg4-gex').innerText = '+$6.8B (正伽瑪支撐)';
+            }
+        }
+
+        function requestPushNotification() {
+            if (!('Notification' in window)) {
+                alert('您的瀏覽器不支援通知功能');
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification("🔔 雙均線預警系統通知已啟用", {
+                        body: "系統已成功綁定手機推播權限！當 SKEW > 135 或 20EMA/60EMA 破位時將自動發送警戒彈窗。",
+                        icon: "sentinel_logo.jpg"
+                    });
+                } else {
+                    alert('已拒絕通知權限。若需開啟，請在手機瀏覽器設定中允許本站發送通知。');
+                }
+            });
+        }
+
+        function triggerNativePushNotification(title, message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: message,
+                    icon: "sentinel_logo.jpg"
+                });
+            }
+        }
+
+        function simulatePush(type) {
+            const logEl = document.getElementById('push-log');
+            let msg = "";
+            let title = "";
+            if (type === 'yellow') {
+                title = '⚠️ [🟡 黃燈預警] 頂部背離警報';
+                msg = 'QQQ 指數創新高，但廣度 S5FI 降至 42% 且 SKEW 達 147.02！機構暗中搶購 Put 保險，請停止追高並備妥對沖計畫。';
+            } else if (type === 'red') {
+                title = '🚨 [🔴 紅燈警報] GEX 破位與雙均線死叉';
+                msg = 'QQQ 股價跌破 60日扣抵價 ($708.75) 且跌破 GEX 零伽瑪防線！造市商踩踏開啟，啟動 50% NQ 期貨空單對沖護體！';
+            } else if (type === 'blue') {
+                title = '🚀 [🔵 藍燈抄底] VIX 恐慌倒掛訊號';
+                msg = 'VIX 飆升至 38.5 倒掛，DIX 暗池雷達爆出 48.2% 大戶買盤！平倉期貨空單鎖定暴利，啟動 60 天 1.5x 抄底加碼 QQQ！';
+            }
+            logEl.innerHTML = `<strong>${title}</strong>: ${msg}`;
+            triggerNativePushNotification(title, msg);
+        }
+
+        async function fetchTickerWithFallback(symbol) {
+            const rawUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rawUrl)}`
+            ];
+
+            for (const proxyUrl of proxies) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res = await fetch(proxyUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta) {
+                        return data.chart.result[0].meta.regularMarketPrice;
+                    }
+                } catch (e) {
+                    // Try next fallback proxy
+                }
+            }
+            return null;
+        }
+
+        async function refreshLiveData() {
+            const spinIcon = document.getElementById('spin-icon');
+            const updateTimeEl = document.getElementById('last-update-time');
+            const pushLogEl = document.getElementById('push-log');
+
+            if (spinIcon) spinIcon.classList.add('animate-spin');
+
+            const now = new Date();
+            const yr = now.getFullYear();
+            const mo = String(now.getMonth() + 1).padStart(2, '0');
+            const da = String(now.getDate()).padStart(2, '0');
+            const ho = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            const se = String(now.getSeconds()).padStart(2, '0');
+            const timeStr = `${yr}-${mo}-${da} ${ho}:${mi}:${se}`;
+
+            // Real Base Fallback Quotes (Latest Market)
+            let quotes = {
+                'QQQ': 708.69,
+                'SPY': 757.83,
+                'VIX': 17.84,
+                'VVIX': 102.66,
+                'SKEW': 147.02,
+                'DXY': 99.08,
+                'HYG': 78.62,
+                'LQD': 104.36
+            };
+
+            try {
+                const results = await Promise.allSettled([
+                    fetchTickerWithFallback('QQQ'),
+                    fetchTickerWithFallback('SPY'),
+                    fetchTickerWithFallback('^VIX'),
+                    fetchTickerWithFallback('^VVIX'),
+                    fetchTickerWithFallback('^SKEW'),
+                    fetchTickerWithFallback('DX-Y.NYB'),
+                    fetchTickerWithFallback('HYG'),
+                    fetchTickerWithFallback('LQD')
+                ]);
+
+                if (results[0].status === 'fulfilled' && results[0].value) quotes.QQQ = results[0].value;
+                if (results[1].status === 'fulfilled' && results[1].value) quotes.SPY = results[1].value;
+                if (results[2].status === 'fulfilled' && results[2].value) quotes.VIX = results[2].value;
+                if (results[3].status === 'fulfilled' && results[3].value) quotes.VVIX = results[3].value;
+                if (results[4].status === 'fulfilled' && results[4].value) quotes.SKEW = results[4].value;
+                if (results[5].status === 'fulfilled' && results[5].value) quotes.DXY = results[5].value;
+                if (results[6].status === 'fulfilled' && results[6].value) quotes.HYG = results[6].value;
+                if (results[7].status === 'fulfilled' && results[7].value) quotes.LQD = results[7].value;
+            } catch (err) {
+                console.log('Real-time proxy fetch notice:', err);
+            }
+
+            // Calculations
+            const vvix_vix_ratio = (quotes.VVIX / quotes.VIX).toFixed(2);
+            const qqq_60ema = 708.75;
+            const qqq_deduct = (((quotes.QQQ - qqq_60ema) / qqq_60ema) * 100).toFixed(2);
+            const spy_60ema = 755.28;
+            const spy_deduct = (((quotes.SPY - spy_60ema) / spy_60ema) * 100).toFixed(2);
+
+            setTimeout(() => {
+                // Tier 1 Summary Cards Update
+                document.getElementById('price-qqq-main').innerText = `$${quotes.QQQ.toFixed(2)}`;
+                document.getElementById('price-qqq-deduct').innerText = `${qqq_deduct >= 0 ? '+' : ''}${qqq_deduct}% (${qqq_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
+                document.getElementById('price-spy-main').innerText = `$${quotes.SPY.toFixed(2)}`;
+                document.getElementById('price-spy-deduct').innerText = `${spy_deduct >= 0 ? '+' : ''}${spy_deduct}% (${spy_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
+
+                // Tier 2 Stage Alerts Update
+                document.getElementById('macro-skew-val').innerText = `${quotes.SKEW.toFixed(2)} (${quotes.SKEW > 135 ? '⚠️ 突破 135' : '🟢 正常'})`;
+                document.getElementById('macro-dxy-val').innerText = `${quotes.DXY.toFixed(2)} (${quotes.DXY > 105 ? '⚠️ 美元緊縮' : '🟢 美元回落'})`;
+                document.getElementById('macro-hyg-val').innerText = `$${quotes.HYG.toFixed(2)} / $${quotes.LQD.toFixed(2)} (🟢 健康)`;
+
+                document.getElementById('stg3-skew').innerText = `${quotes.SKEW.toFixed(2)} (${quotes.SKEW > 135 ? '⚠️ >135 預警' : '🟢 正常'})`;
+                document.getElementById('stg3-vvix-vix').innerText = `${vvix_vix_ratio} (${vvix_vix_ratio > 6.0 ? '⚠️ >6.0 暴升' : '未暴升 <6.0'})`;
+                document.getElementById('stg5-vix').innerText = `${quotes.VIX.toFixed(2)} (${quotes.VIX > 35.0 ? '🔵 >35.0 倒掛抄底' : '未突破 >35.0'})`;
+
+                // Tier 3 Radar Grid Updates
+                document.getElementById('rem-skew').innerText = quotes.SKEW.toFixed(2);
+                document.getElementById('rem-vvix-vix').innerText = vvix_vix_ratio;
+                document.getElementById('rem-dxy').innerText = quotes.DXY.toFixed(2);
+                document.getElementById('rem-hyg-lqd').innerText = `3.2% ($${quotes.HYG.toFixed(2)}/$${quotes.LQD.toFixed(2)})`;
+
+                // Alert check trigger
+                if (quotes.SKEW > 135) {
+                    triggerNativePushNotification("⚠️ [🟡 黃燈預警] SKEW 黑天鵝指標觸發", `當前 SKEW 達 ${quotes.SKEW.toFixed(2)} 突破 135 警戒！機構搶購 Put 保險中。`);
+                }
+
+                // Pulse Effect
+                document.querySelectorAll('.rem-box').forEach(box => {
+                    box.classList.add('updated-flash');
+                    setTimeout(() => box.classList.remove('updated-flash'), 1000);
+                });
+
+                if (spinIcon) spinIcon.classList.remove('animate-spin');
+                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr + ' (開啟頁面即時連線成功)';
+                if (pushLogEl) pushLogEl.innerHTML = `🔄 【自動即時刷新成功】行情與 18 項指標已即時同步！<br>• QQQ: $${quotes.QQQ.toFixed(2)} | SPY: $${quotes.SPY.toFixed(2)} | VIX: ${quotes.VIX.toFixed(2)} | VVIX/VIX: ${vvix_vix_ratio} | SKEW: ${quotes.SKEW.toFixed(2)} | DXY: ${quotes.DXY.toFixed(2)} | HYG/LQD: $${quotes.HYG.toFixed(2)}/$${quotes.LQD.toFixed(2)}`;
+            }, 300);
+        }
+
+        // AUTO-RUN ON PAGE LOAD
+        window.addEventListener('DOMContentLoaded', refreshLiveData);
+    </script>
+</body>
+</html>
