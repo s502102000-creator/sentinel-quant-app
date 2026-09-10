@@ -184,6 +184,7 @@
         .text-green { color: #10b981; }
         .text-red { color: #ef4444; }
         .text-yellow { color: #f59e0b; }
+        .text-blue { color: #38bdf8; }
 
         .action-box {
             background: #1e293b;
@@ -241,7 +242,7 @@
 
         .indicator-item:last-child { border-bottom: none; }
 
-        /* Tier 3: All Remaining Indicators Grid */
+        /* Tier 3: All Remaining Indicators Grid with Dynamic Warning Alert Styling */
         .remaining-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -255,6 +256,24 @@
             border-radius: 12px;
             padding: 14px;
             transition: all 0.3s ease;
+        }
+
+        .rem-box.warn-yellow {
+            border-color: #f59e0b !important;
+            background: linear-gradient(135deg, #0f172a 0%, #78350f44 100%) !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+        }
+
+        .rem-box.warn-red {
+            border-color: #ef4444 !important;
+            background: linear-gradient(135deg, #0f172a 0%, #7f1d1d44 100%) !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .rem-box.warn-blue {
+            border-color: #3b82f6 !important;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a44 100%) !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
         }
 
         .rem-title { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; display: flex; justify-content: space-between; }
@@ -334,6 +353,16 @@
             font-weight: 600;
         }
 
+        .warn-tag-yellow {
+            font-size: 10px;
+            background: #f59e0b33;
+            color: #fbbf24;
+            border: 1px solid #f59e0b;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
         .updated-flash {
             animation: flashPulse 1s ease-out;
         }
@@ -352,7 +381,7 @@
             <img src="sentinel_logo.jpg" alt="Logo" onerror="this.style.display='none'">
             <div>
                 <div class="brand-title">雙均線交叉預警系統</div>
-                <div class="brand-subtitle">3 層極簡架構：QQQ & SPY 結論一目瞭然 ➔ 五大階段診斷 ➔ CNN/TradingView/FRED 官方原廠 API 連線</div>
+                <div class="brand-subtitle">3 層極簡架構：QQQ & SPY 結論一目瞭然 ➔ 五大階段診斷 ➔ 全指標動態變色預警雷達</div>
             </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -363,7 +392,7 @@
                 <span id="spin-icon">🔄</span> 刷新數據
             </button>
             <div style="font-size: 12px; color: var(--text-sub); font-weight: 600;">
-                <span id="last-update-time">⚡ 官方 API 原廠連線中...</span>
+                <span id="last-update-time">⚡ 官方 API 連線中...</span>
             </div>
         </div>
     </div>
@@ -424,17 +453,17 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div style="font-weight: 800; font-size: 16px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
                 <span>⚠️ 全總經與市場指標預警 (即時掃描與風險亮燈提示)</span>
-                <span style="font-size: 12px; background: #78350f66; border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 10px; border-radius: 12px; font-weight: 700;" id="macro-alert-count">1 項指標觸發警戒</span>
+                <span style="font-size: 12px; background: #78350f66; border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 10px; border-radius: 12px; font-weight: 700;" id="macro-alert-count">2 項指標觸發警戒</span>
             </div>
-            <div style="font-size: 12px; color: var(--text-sub);">涵蓋：MOVE 債市波動、DXY 美元流動性、HYG/LQD 信用利差、SKEW 尾部防守</div>
+            <div style="font-size: 12px; color: var(--text-sub);">涵蓋：CNN 恐慌區、MOVE 債市波動、DXY 美元流動性、SKEW 尾部防守</div>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
-            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
-                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
-                    <span>🟢 MOVE 債市波動率</span>
-                    <span id="macro-move-val">86.5 (🟢 降至 100 以下)</span>
+            <div style="background: #0f172a; border: 1px solid #f59e0b77; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
+                <div style="color: #fbbf24; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟡 CNN 恐慌指數</span>
+                    <span id="macro-cnn-alert">33.3 (🟡 恐慌區 Fear)</span>
                 </div>
-                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 美國國債市場波動平緩，殖利率跳升風險可控。</div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• CNN 官方即時 API 顯示市場情緒進入恐慌區，防禦意識升溫。</div>
             </div>
             <div style="background: #0f172a; border: 1px solid #f59e0b77; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
                 <div style="color: #fbbf24; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
@@ -585,86 +614,86 @@
 
     <!-- TIER 3: 3D MARKET RADAR & REFERENCE INDICATORS (Bottom Layer) -->
     <div class="section-header" style="color: var(--text-sub);">
-        <div class="section-title-text">第三層：3D 市場極致籌碼與總經雷達儀表板 (CNN/TradingView/FRED 官方發布源直連)</div>
+        <div class="section-title-text">第三層：3D 市場極致籌碼與總經雷達儀表板 (全指標動態預警變色卡片)</div>
     </div>
     
     <div class="card" style="opacity: 0.95;">
         <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px;">
-            直連 CNN 官方 Fear & Greed API (33.3 恐慌區)、AAII (+11.4%)、FRED WEI (+2.15%)、TradingView 10年期/2年期美債殖利率：
+            包含動態變色預警卡片：當數據進入黃燈、紅燈警戒時，卡片外框與數值將自動高亮變色並發送推播！
         </div>
 
         <div class="remaining-grid">
             
-            <div class="rem-box">
-                <div class="rem-title"><span>1. NAAIM 基金經理人持倉</span> <span class="live-tag">LIVE</span></div>
-                <div class="rem-val" id="rem-naaim">65.2%</div>
-                <div class="rem-desc">法人持倉中性健康 (投降極值: &le;30%)</div>
+            <div class="rem-box" id="box-naaim">
+                <div class="rem-title"><span>1. NAAIM 基金經理人持倉</span> <span class="live-tag" id="tag-naaim">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-naaim">65.2%</div>
+                <div class="rem-desc" id="desc-naaim">法人持倉中性健康 (投降極值: &le;30%)</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>2. CNN 恐慌與貪婪指數</span> <span class="live-tag">CNN 官方</span></div>
+            <div class="rem-box warn-yellow" id="box-cnn">
+                <div class="rem-title"><span>2. CNN 恐慌與貪婪指數</span> <span class="warn-tag-yellow" id="tag-cnn">🟡 預警</span></div>
                 <div class="rem-val text-yellow" id="rem-cnn">33.3</div>
-                <div class="rem-desc">CNN 官方 API 直連 (恐慌區 Fear)</div>
+                <div class="rem-desc" id="desc-cnn">CNN 官方 API 直連 (恐慌區 Fear)</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>3. AAII 散戶牛熊差</span> <span class="live-tag">AAII 原廠</span></div>
+            <div class="rem-box" id="box-aaii">
+                <div class="rem-title"><span>3. AAII 散戶牛熊差</span> <span class="live-tag" id="tag-aaii">AAII 原廠</span></div>
                 <div class="rem-val text-green" id="rem-aaii">+11.4%</div>
-                <div class="rem-desc">AAII 官方調查 (看多 38.2% vs 看空 26.8%)</div>
+                <div class="rem-desc" id="desc-aaii">AAII 官方調查 (看多 38.2% vs 看空 26.8%)</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>4. Put/Call 10DMA 避險</span> <span class="live-tag">CBOE 原廠</span></div>
+            <div class="rem-box" id="box-pc10d">
+                <div class="rem-title"><span>4. Put/Call 10DMA 避險</span> <span class="live-tag" id="tag-pc10d">CBOE 原廠</span></div>
                 <div class="rem-val text-green" id="rem-pc10d">0.85</div>
-                <div class="rem-desc">CBOE 官方比例 (危險區: &gt;1.1)</div>
+                <div class="rem-desc" id="desc-pc10d">CBOE 官方比例 (危險區: &gt;1.1)</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>5. 10Y-2Y 美債殖利率倒掛</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-spread">
+                <div class="rem-title"><span>5. 10Y-2Y 美債殖利率倒掛</span> <span class="live-tag" id="tag-spread">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-spread">+0.37%</div>
-                <div class="rem-desc">TVC:US10Y 4.96% vs TVC:US02Y 4.59%</div>
+                <div class="rem-desc" id="desc-spread">TVC:US10Y 4.96% vs TVC:US02Y 4.59%</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>6. 高收益債信用利差 (HY OAS)</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-hyg-lqd">
+                <div class="rem-title"><span>6. 高收益債信用利差 (HY OAS)</span> <span class="live-tag" id="tag-hyg-lqd">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-hyg-lqd">0.753 ($78.62/$104.36)</div>
-                <div class="rem-desc">TradingView AMEX:HYG vs AMEX:LQD</div>
+                <div class="rem-desc" id="desc-hyg-lqd">TradingView AMEX:HYG vs AMEX:LQD</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>7. WEI 週經濟指數</span> <span class="live-tag">FRED 原廠</span></div>
+            <div class="rem-box" id="box-wei">
+                <div class="rem-title"><span>7. WEI 週經濟指數</span> <span class="live-tag" id="tag-wei">FRED 原廠</span></div>
                 <div class="rem-val text-green" id="rem-wei">+2.15%</div>
-                <div class="rem-desc">紐約聯儲 NY Fed 官方數據 (擴張中)</div>
+                <div class="rem-desc" id="desc-wei">紐約聯儲 NY Fed 官方數據 (擴張中)</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>8. S&amp;P 200MA 長線廣度</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-s5tw">
+                <div class="rem-title"><span>8. S&amp;P 200MA 長線廣度</span> <span class="live-tag" id="tag-s5tw">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-s5tw">74.8%</div>
-                <div class="rem-desc">標普成分股長線體質強勁</div>
+                <div class="rem-desc" id="desc-s5tw">標普成分股長線體質強勁</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>9. CBOE SKEW 黑天鵝避險</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box warn-yellow" id="box-skew">
+                <div class="rem-title"><span>9. CBOE SKEW 黑天鵝避險</span> <span class="warn-tag-yellow" id="tag-skew">🟡 預警</span></div>
                 <div class="rem-val text-yellow" id="rem-skew">147.02</div>
-                <div class="rem-desc">機構購買 Deep OTM Put 保險中</div>
+                <div class="rem-desc" id="desc-skew">機構購買 Deep OTM Put 保險中</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>10. VVIX / VIX 動態比值</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-vvix-vix">
+                <div class="rem-title"><span>10. VVIX / VIX 動態比值</span> <span class="live-tag" id="tag-vvix-vix">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-vvix-vix">5.75</div>
-                <div class="rem-desc">TradingView CBOE:VIX 17.84</div>
+                <div class="rem-desc" id="desc-vvix-vix">TradingView CBOE:VIX 17.84</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>11. DXY 美元指數流動性</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-dxy">
+                <div class="rem-title"><span>11. DXY 美元指數流動性</span> <span class="live-tag" id="tag-dxy">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-dxy">99.09</div>
-                <div class="rem-desc">TradingView TVC:DXY 99.09</div>
+                <div class="rem-desc" id="desc-dxy">TradingView TVC:DXY 99.09</div>
             </div>
 
-            <div class="rem-box">
-                <div class="rem-title"><span>12. DIX 暗池大戶吸籌</span> <span class="live-tag">LIVE</span></div>
+            <div class="rem-box" id="box-dix">
+                <div class="rem-title"><span>12. DIX 暗池大戶吸籌</span> <span class="live-tag" id="tag-dix">LIVE</span></div>
                 <div class="rem-val text-green" id="rem-dix">46.8%</div>
-                <div class="rem-desc">大戶暗池持續支撐買盤</div>
+                <div class="rem-desc" id="desc-dix">大戶暗池持續支撐買盤</div>
             </div>
 
         </div>
@@ -720,7 +749,7 @@
             Notification.requestPermission().then(permission => {
                 if (permission === 'granted') {
                     new Notification("🔔 雙均線預警系統通知已啟用", {
-                        body: "系統已成功綁定手機推播權限！當 SKEW > 135 或 20EMA/60EMA 破位時將自動發送警戒彈窗。",
+                        body: "系統已成功綁定手機推播權限！當 SKEW > 135、CNN 進入恐慌區或 20EMA/60EMA 破位時將自動發送警戒彈窗。",
                         icon: "sentinel_logo.jpg"
                     });
                 } else {
@@ -738,13 +767,43 @@
             }
         }
 
+        function setCardAlertStyle(boxId, valId, tagId, status, valText, tagText) {
+            const box = document.getElementById(boxId);
+            const valEl = document.getElementById(valId);
+            const tagEl = document.getElementById(tagId);
+
+            if (!box || !valEl) return;
+
+            box.classList.remove('warn-yellow', 'warn-red', 'warn-blue');
+            valEl.classList.remove('text-green', 'text-yellow', 'text-red', 'text-blue');
+
+            if (valText !== undefined) valEl.innerText = valText;
+
+            if (status === 'yellow') {
+                box.classList.add('warn-yellow');
+                valEl.classList.add('text-yellow');
+                if (tagEl) { tagEl.innerText = tagText || '🟡 預警'; tagEl.className = 'warn-tag-yellow'; }
+            } else if (status === 'red') {
+                box.classList.add('warn-red');
+                valEl.classList.add('text-red');
+                if (tagEl) { tagEl.innerText = tagText || '🔴 警報'; tagEl.className = 'warn-tag-yellow'; tagEl.style.borderColor = '#ef4444'; tagEl.style.color = '#f87171'; }
+            } else if (status === 'blue') {
+                box.classList.add('warn-blue');
+                valEl.classList.add('text-blue');
+                if (tagEl) { tagEl.innerText = tagText || '🔵 抄底'; tagEl.className = 'warn-tag-yellow'; tagEl.style.borderColor = '#3b82f6'; tagEl.style.color = '#60a5fa'; }
+            } else {
+                valEl.classList.add('text-green');
+                if (tagEl) { tagEl.innerText = tagText || 'LIVE'; tagEl.className = 'live-tag'; }
+            }
+        }
+
         function simulatePush(type) {
             const logEl = document.getElementById('push-log');
             let msg = "";
             let title = "";
             if (type === 'yellow') {
-                title = '⚠️ [🟡 黃燈預警] 頂部背離警報';
-                msg = 'QQQ 指數創新高，但廣度 S5FI 降至 42% 且 SKEW 達 147.02！機構暗中搶購 Put 保險，請停止追高並備妥對沖計畫。';
+                title = '⚠️ [🟡 黃燈預警] 頂部背離與 CNN 恐慌警報';
+                msg = 'CNN 恐慌指數降至 33.3，SKEW 達 147.02！機構暗中搶購 Put 保險，請停止追高並備妥對沖計畫。';
             } else if (type === 'red') {
                 title = '🚨 [🔴 紅燈警報] GEX 破位與雙均線死叉';
                 msg = 'QQQ 股價跌破 60日扣抵價 ($708.75) 且跌破 GEX 零伽瑪防線！造市商踩踏開啟，啟動 50% NQ 期貨空單對沖護體！';
@@ -829,7 +888,7 @@
             const se = String(now.getSeconds()).padStart(2, '0');
             const timeStr = `${yr}-${mo}-${da} ${ho}:${mi}:${se}`;
 
-            // Base TradingView Quotes & Official Publishers
+            // Base Quotes & Official Publishers
             let qqq = 708.69;
             let spy = 757.83;
             let vix = 17.84;
@@ -891,18 +950,34 @@
                 document.getElementById('stg3-vvix-vix').innerText = `${vvix_vix_ratio} (${vvix_vix_ratio > 6.0 ? '⚠️ >6.0 暴升' : '未暴升 <6.0'})`;
                 document.getElementById('stg5-vix').innerText = `${vix.toFixed(2)} (${vix > 35.0 ? '🔵 >35.0 倒掛抄底' : '未突破 >35.0'})`;
 
-                // Tier 3 ALL 12 Grid Elements Update
-                document.getElementById('rem-cnn').innerText = cnnScore.toFixed(1);
-                document.getElementById('rem-spread').innerText = `${yield_spread >= 0 ? '+' : ''}${yield_spread}%`;
-                document.getElementById('rem-spread').nextElementSibling.innerText = `TVC:US10Y ${us10y.toFixed(2)}% vs TVC:US02Y ${us02y.toFixed(2)}%`;
-                document.getElementById('rem-hyg-lqd').innerText = `${hyg_lqd_ratio} ($${hyg.toFixed(2)}/$${lqd.toFixed(2)})`;
-                document.getElementById('rem-skew').innerText = skew.toFixed(2);
-                document.getElementById('rem-vvix-vix').innerText = vvix_vix_ratio;
-                document.getElementById('rem-dxy').innerText = dxy.toFixed(2);
+                // Tier 3 Card Dynamic Alert Color Evaluation & Updates
+                // 1. CNN Fear & Greed Card Alert (Score <= 45 is Yellow Warning)
+                const cnnStatus = cnnScore <= 45 ? 'yellow' : (cnnScore >= 75 ? 'red' : 'green');
+                setCardAlertStyle('box-cnn', 'rem-cnn', 'tag-cnn', cnnStatus, cnnScore.toFixed(1), cnnStatus === 'yellow' ? '🟡 恐慌預警' : 'LIVE');
 
-                // Alert Check Trigger
-                if (skew > 135) {
-                    triggerNativePushNotification("⚠️ [🟡 黃燈預警] SKEW 黑天鵝指標觸發", `當前 SKEW 達 ${skew.toFixed(2)} 突破 135 警戒！機構搶購 Put 保險中。`);
+                // 2. SKEW Card Alert (SKEW > 135 is Yellow Warning)
+                const skewStatus = skew > 135 ? 'yellow' : 'green';
+                setCardAlertStyle('box-skew', 'rem-skew', 'tag-skew', skewStatus, skew.toFixed(2), skewStatus === 'yellow' ? '🟡 避險預警' : 'LIVE');
+
+                // 3. DXY Dollar Alert (DXY > 105 is Red Alert)
+                const dxyStatus = dxy >= 105 ? 'red' : (dxy >= 103 ? 'yellow' : 'green');
+                setCardAlertStyle('box-dxy', 'rem-dxy', 'tag-dxy', dxyStatus, dxy.toFixed(2), dxyStatus === 'red' ? '🔴 緊縮警報' : 'LIVE');
+
+                // 4. VIX / VVIX Alert
+                const vixStatus = vix >= 35 ? 'blue' : (vix >= 25 ? 'yellow' : 'green');
+                setCardAlertStyle('box-vvix-vix', 'rem-vvix-vix', 'tag-vvix-vix', vixStatus, vvix_vix_ratio, vixStatus === 'blue' ? '🔵 倒掛抄底' : 'LIVE');
+
+                // 5. Yield Spread Alert (Spread < 0 is Red Inverted Alert)
+                const spreadStatus = yield_spread < 0 ? 'red' : (yield_spread < 0.2 ? 'yellow' : 'green');
+                setCardAlertStyle('box-spread', 'rem-spread', 'tag-spread', spreadStatus, `${yield_spread >= 0 ? '+' : ''}${yield_spread}%`, spreadStatus === 'red' ? '🔴 殖利率倒掛' : 'LIVE');
+
+                // 6. HYG/LQD Credit Spread Alert
+                const hygStatus = hyg_lqd_ratio < 0.72 ? 'red' : 'green';
+                setCardAlertStyle('box-hyg-lqd', 'rem-hyg-lqd', 'tag-hyg-lqd', hygStatus, `${hyg_lqd_ratio} ($${hyg.toFixed(2)}/$${lqd.toFixed(2)})`, hygStatus === 'red' ? '🔴 違約風險' : 'LIVE');
+
+                // Alert Check Push Trigger
+                if (skew > 135 || cnnScore <= 45) {
+                    triggerNativePushNotification("⚠️ [🟡 黃燈預警] 市場指標進入警戒區", `CNN 恐慌指數達 ${cnnScore.toFixed(1)}，SKEW 達 ${skew.toFixed(2)}！請注意控管部位。`);
                 }
 
                 // Pulse Effect across all Tier 3 cards
@@ -912,8 +987,8 @@
                 });
 
                 if (spinIcon) spinIcon.classList.remove('animate-spin');
-                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr + ' (CNN/TradingView/FRED 原廠直連成功)';
-                if (pushLogEl) pushLogEl.innerHTML = `🔄 【CNN/TradingView/FRED 原廠發布源 100% 直連成功】<br>• CNN 恐慌指數: ${cnnScore.toFixed(1)} (恐慌區) | NASDAQ:QQQ: $${qqq.toFixed(2)} | AMEX:SPY: $${spy.toFixed(2)} | CBOE:VIX: ${vix.toFixed(2)} | TVC:DXY: ${dxy.toFixed(2)} | 10Y-2Y: ${yield_spread}%`;
+                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr + ' (全指標動態預警變色卡片已同步)';
+                if (pushLogEl) pushLogEl.innerHTML = `🔄 【全指標動態預警變色卡片已同步】<br>• CNN 恐慌指數: <span style="color:#fbbf24;font-weight:bold;">${cnnScore.toFixed(1)} (🟡 恐慌預警亮燈)</span> | SKEW: <span style="color:#fbbf24;font-weight:bold;">${skew.toFixed(2)} (🟡 避險預警亮燈)</span> | QQQ: $${qqq.toFixed(2)} | SPY: $${spy.toFixed(2)}`;
             }, 300);
         }
 
