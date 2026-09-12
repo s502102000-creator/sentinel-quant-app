@@ -1,0 +1,13 @@
+{
+  "name": "sentinel-quant-app",
+  "version": "2.0.0",
+  "description": "雙均線交叉預警系統 - 前後端分離動態數據追蹤系統",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

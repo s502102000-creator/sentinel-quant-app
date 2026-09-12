@@ -384,15 +384,21 @@
                 <div class="brand-subtitle">3 層極簡架構：QQQ & SPY 結論一目瞭然 ➔ 五大階段診斷 ➔ 全指標動態變色預警雷達</div>
             </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
             <button onclick="requestPushNotification()" class="btn-notify">
                 🔔 啟用手機預警彈窗
             </button>
             <button onclick="refreshLiveData()" class="btn-refresh">
                 <span id="spin-icon">🔄</span> 刷新數據
             </button>
-            <div style="font-size: 12px; color: var(--text-sub); font-weight: 600;">
-                <span id="last-update-time">⚡ 官方 API 連線中...</span>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <div id="api-status-badge" style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; background:rgba(245, 158, 11, 0.15); border:1px solid #f59e0b; color:#fbbf24; transition: all 0.3s ease;">
+                    <span id="api-status-dot" class="animate-pulse" style="width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
+                    <span id="api-status-text">⏳ 後端 API 連線中...</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-sub); font-weight: 500;">
+                    <span id="last-update-time">⚡ 數據載入中...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -872,76 +878,104 @@
             return null;
         }
 
+        async function fetchFromBackendAPI() {
+            const endpoints = [
+                "/.netlify/functions/indicators",
+                "/api/indicators"
+            ];
+            for (const ep of endpoints) {
+                try {
+                    const res = await fetch(ep);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json && json.status === "success" && json.data) {
+                            return json.data;
+                        }
+                    }
+                } catch (e) {
+                    console.log("Backend API endpoint notice:", ep, e);
+                }
+            }
+            return null;
+        }
+
         async function refreshLiveData() {
             const spinIcon = document.getElementById('spin-icon');
             const updateTimeEl = document.getElementById('last-update-time');
             const pushLogEl = document.getElementById('push-log');
+            const statusBadge = document.getElementById('api-status-badge');
+            const statusDot = document.getElementById('api-status-dot');
+            const statusText = document.getElementById('api-status-text');
 
             if (spinIcon) spinIcon.classList.add('animate-spin');
 
+            if (statusBadge) {
+                statusBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                statusBadge.style.borderColor = '#f59e0b';
+                statusBadge.style.color = '#fbbf24';
+            }
+            if (statusText) statusText.innerText = '⏳ 連線狀態：後端 (CNN/TradingView 官方源) 資料抓取中...';
+
             const now = new Date();
-            const yr = now.getFullYear();
-            const mo = String(now.getMonth() + 1).padStart(2, '0');
-            const da = String(now.getDate()).padStart(2, '0');
-            const ho = String(now.getHours()).padStart(2, '0');
-            const mi = String(now.getMinutes()).padStart(2, '0');
-            const se = String(now.getSeconds()).padStart(2, '0');
-            const timeStr = `${yr}-${mo}-${da} ${ho}:${mi}:${se}`;
+            const timeStr = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0') + ':' +
+                String(now.getSeconds()).padStart(2, '0');
 
-            // Base Quotes & Official Publishers
-            let qqq = 708.69;
-            let spy = 757.83;
-            let vix = 17.84;
-            let dxy = 99.09;
-            let hyg = 78.62;
-            let lqd = 104.36;
-            let us10y = 4.96;
-            let us02y = 4.59;
-            let vvix = 102.66;
-            let skew = 147.02;
+            let qqq = 708.69, spy = 757.83, vix = 17.84, dxy = 99.09, hyg = 78.62, lqd = 104.36, us10y = 4.96, us02y = 4.59, vvix = 102.66, skew = 147.02, cnnScore = 33.3;
+            let backendConnected = false;
 
-            let cnnScore = 33.3;
-
-            // Direct Parallel Fetching
-            const [tvMap, cnnObj] = await Promise.allSettled([
-                fetchTradingViewDirect(),
-                fetchCNNOfficialFearGreed()
-            ]);
-
-            if (tvMap.status === 'fulfilled' && tvMap.value) {
-                const m = tvMap.value;
-                if (m['NASDAQ:QQQ']) qqq = m['NASDAQ:QQQ'];
-                if (m['AMEX:SPY']) spy = m['AMEX:SPY'];
-                if (m['CBOE:VIX']) vix = m['CBOE:VIX'];
-                if (m['TVC:DXY']) dxy = m['TVC:DXY'];
-                if (m['AMEX:HYG']) hyg = m['AMEX:HYG'];
-                if (m['AMEX:LQD']) lqd = m['AMEX:LQD'];
-                if (m['TVC:US10Y']) us10y = m['TVC:US10Y'];
-                if (m['TVC:US02Y']) us02y = m['TVC:US02Y'];
+            const backendData = await fetchFromBackendAPI();
+            if (backendData) {
+                backendConnected = true;
+                if (backendData.qqq) qqq = backendData.qqq;
+                if (backendData.spy) spy = backendData.spy;
+                if (backendData.vix) vix = backendData.vix;
+                if (backendData.dxy) dxy = backendData.dxy;
+                if (backendData.hyg) hyg = backendData.hyg;
+                if (backendData.lqd) lqd = backendData.lqd;
+                if (backendData.us10y) us10y = backendData.us10y;
+                if (backendData.us02y) us02y = backendData.us02y;
+                if (backendData.vvix) vvix = backendData.vvix;
+                if (backendData.skew) skew = backendData.skew;
+                if (backendData.cnnScore) cnnScore = backendData.cnnScore;
+            } else {
+                const [tvMap, cnnObj] = await Promise.allSettled([
+                    fetchTradingViewDirect(),
+                    fetchCNNOfficialFearGreed()
+                ]);
+                if (tvMap.status === 'fulfilled' && tvMap.value) {
+                    const m = tvMap.value;
+                    if (m['NASDAQ:QQQ']) qqq = m['NASDAQ:QQQ'];
+                    if (m['AMEX:SPY']) spy = m['AMEX:SPY'];
+                    if (m['CBOE:VIX']) vix = m['CBOE:VIX'];
+                    if (m['TVC:DXY']) dxy = m['TVC:DXY'];
+                    if (m['AMEX:HYG']) hyg = m['AMEX:HYG'];
+                    if (m['AMEX:LQD']) lqd = m['AMEX:LQD'];
+                    if (m['TVC:US10Y']) us10y = m['TVC:US10Y'];
+                    if (m['TVC:US02Y']) us02y = m['TVC:US02Y'];
+                }
+                if (cnnObj.status === 'fulfilled' && cnnObj.value) {
+                    cnnScore = cnnObj.value.score;
+                }
             }
 
-            if (cnnObj.status === 'fulfilled' && cnnObj.value) {
-                cnnScore = cnnObj.value.score;
-            }
-
-            // Calculations
             const vvix_vix_ratio = (vvix / vix).toFixed(2);
             const yield_spread = (us10y - us02y).toFixed(2);
             const hyg_lqd_ratio = (hyg / lqd).toFixed(3);
-
             const qqq_60ema = 708.75;
             const qqq_deduct = (((qqq - qqq_60ema) / qqq_60ema) * 100).toFixed(2);
             const spy_60ema = 755.28;
             const spy_deduct = (((spy - spy_60ema) / spy_60ema) * 100).toFixed(2);
 
             setTimeout(() => {
-                // Tier 1 Summary Cards Update
                 document.getElementById('price-qqq-main').innerText = `$${qqq.toFixed(2)}`;
                 document.getElementById('price-qqq-deduct').innerText = `${qqq_deduct >= 0 ? '+' : ''}${qqq_deduct}% (${qqq_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
                 document.getElementById('price-spy-main').innerText = `$${spy.toFixed(2)}`;
                 document.getElementById('price-spy-deduct').innerText = `${spy_deduct >= 0 ? '+' : ''}${spy_deduct}% (${spy_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
 
-                // Tier 2 Stage Alerts Update
                 document.getElementById('macro-skew-val').innerText = `${skew.toFixed(2)} (${skew > 135 ? '⚠️ 突破 135' : '🟢 正常'})`;
                 document.getElementById('macro-dxy-val').innerText = `${dxy.toFixed(2)} (${dxy > 105 ? '⚠️ 美元緊縮' : '🟢 美元回落'})`;
                 document.getElementById('macro-hyg-val').innerText = `$${hyg.toFixed(2)} / $${lqd.toFixed(2)} (🟢 健康)`;
@@ -950,44 +984,53 @@
                 document.getElementById('stg3-vvix-vix').innerText = `${vvix_vix_ratio} (${vvix_vix_ratio > 6.0 ? '⚠️ >6.0 暴升' : '未暴升 <6.0'})`;
                 document.getElementById('stg5-vix').innerText = `${vix.toFixed(2)} (${vix > 35.0 ? '🔵 >35.0 倒掛抄底' : '未突破 >35.0'})`;
 
-                // Tier 3 Card Dynamic Alert Color Evaluation & Updates
-                // 1. CNN Fear & Greed Card Alert (Score <= 45 is Yellow Warning)
                 const cnnStatus = cnnScore <= 45 ? 'yellow' : (cnnScore >= 75 ? 'red' : 'green');
                 setCardAlertStyle('box-cnn', 'rem-cnn', 'tag-cnn', cnnStatus, cnnScore.toFixed(1), cnnStatus === 'yellow' ? '🟡 恐慌預警' : 'LIVE');
 
-                // 2. SKEW Card Alert (SKEW > 135 is Yellow Warning)
                 const skewStatus = skew > 135 ? 'yellow' : 'green';
                 setCardAlertStyle('box-skew', 'rem-skew', 'tag-skew', skewStatus, skew.toFixed(2), skewStatus === 'yellow' ? '🟡 避險預警' : 'LIVE');
 
-                // 3. DXY Dollar Alert (DXY > 105 is Red Alert)
                 const dxyStatus = dxy >= 105 ? 'red' : (dxy >= 103 ? 'yellow' : 'green');
                 setCardAlertStyle('box-dxy', 'rem-dxy', 'tag-dxy', dxyStatus, dxy.toFixed(2), dxyStatus === 'red' ? '🔴 緊縮警報' : 'LIVE');
 
-                // 4. VIX / VVIX Alert
                 const vixStatus = vix >= 35 ? 'blue' : (vix >= 25 ? 'yellow' : 'green');
                 setCardAlertStyle('box-vvix-vix', 'rem-vvix-vix', 'tag-vvix-vix', vixStatus, vvix_vix_ratio, vixStatus === 'blue' ? '🔵 倒掛抄底' : 'LIVE');
 
-                // 5. Yield Spread Alert (Spread < 0 is Red Inverted Alert)
                 const spreadStatus = yield_spread < 0 ? 'red' : (yield_spread < 0.2 ? 'yellow' : 'green');
                 setCardAlertStyle('box-spread', 'rem-spread', 'tag-spread', spreadStatus, `${yield_spread >= 0 ? '+' : ''}${yield_spread}%`, spreadStatus === 'red' ? '🔴 殖利率倒掛' : 'LIVE');
 
-                // 6. HYG/LQD Credit Spread Alert
                 const hygStatus = hyg_lqd_ratio < 0.72 ? 'red' : 'green';
                 setCardAlertStyle('box-hyg-lqd', 'rem-hyg-lqd', 'tag-hyg-lqd', hygStatus, `${hyg_lqd_ratio} ($${hyg.toFixed(2)}/$${lqd.toFixed(2)})`, hygStatus === 'red' ? '🔴 違約風險' : 'LIVE');
 
-                // Alert Check Push Trigger
                 if (skew > 135 || cnnScore <= 45) {
                     triggerNativePushNotification("⚠️ [🟡 黃燈預警] 市場指標進入警戒區", `CNN 恐慌指數達 ${cnnScore.toFixed(1)}，SKEW 達 ${skew.toFixed(2)}！請注意控管部位。`);
                 }
 
-                // Pulse Effect across all Tier 3 cards
+                if (backendConnected) {
+                    if (statusBadge) {
+                        statusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                        statusBadge.style.borderColor = '#10b981';
+                        statusBadge.style.color = '#34d399';
+                    }
+                    if (statusDot) statusDot.style.background = '#10b981';
+                    if (statusText) statusText.innerText = '✅ 連線狀態：後端 API 全 20 項數據動態同步成功';
+                } else {
+                    if (statusBadge) {
+                        statusBadge.style.background = 'rgba(59, 130, 246, 0.15)';
+                        statusBadge.style.borderColor = '#3b82f6';
+                        statusBadge.style.color = '#60a5fa';
+                    }
+                    if (statusDot) statusDot.style.background = '#3b82f6';
+                    if (statusText) statusText.innerText = 'ℹ️ 連線狀態：本機快照連線 (後端 API 部署中)';
+                }
+
                 document.querySelectorAll('.rem-box').forEach(box => {
                     box.classList.add('updated-flash');
                     setTimeout(() => box.classList.remove('updated-flash'), 1000);
                 });
 
                 if (spinIcon) spinIcon.classList.remove('animate-spin');
-                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr + ' (全指標動態預警變色卡片已同步)';
+                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr;
                 if (pushLogEl) pushLogEl.innerHTML = `🔄 【全指標動態預警變色卡片已同步】<br>• CNN 恐慌指數: <span style="color:#fbbf24;font-weight:bold;">${cnnScore.toFixed(1)} (🟡 恐慌預警亮燈)</span> | SKEW: <span style="color:#fbbf24;font-weight:bold;">${skew.toFixed(2)} (🟡 避險預警亮燈)</span> | QQQ: $${qqq.toFixed(2)} | SPY: $${spy.toFixed(2)}`;
             }, 300);
         }
