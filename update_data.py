@@ -85,6 +85,38 @@ spy_deduct = round(((spy - spy_60ema) / spy_60ema) * 100, 2)
 
 now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+# Save sentinel_live_data.json
+json_payload = {
+    "status": "success",
+    "updated_at": now_str,
+    "data": {
+        "qqq": qqq,
+        "spy": spy,
+        "vix": vix,
+        "dxy": dxy,
+        "hyg": hyg,
+        "lqd": lqd,
+        "us10y": us10y,
+        "us02y": us02y,
+        "vvix": vvix,
+        "skew": skew,
+        "cnnScore": cnn_score,
+        "cnnRating": cnn_rating,
+        "yieldSpread": yield_spread,
+        "hygLqdRatio": hyg_lqd_ratio,
+        "vvixVixRatio": vvix_vix,
+        "qqqDeduct": qqq_deduct,
+        "spyDeduct": spy_deduct,
+        "aaiiSpread": aaii_spread,
+        "weiVal": wei_val
+    }
+}
+
+with open('sentinel_live_data.json', 'w', encoding='utf-8') as f:
+    json.dump(json_payload, f, indent=4, ensure_ascii=False)
+
+print(f"Saved sentinel_live_data.json successfully.")
+
 if os.path.exists('index.html'):
     with open('index.html', 'r', encoding='utf-8') as f:
         content = f.read()

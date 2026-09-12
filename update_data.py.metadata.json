@@ -1,4 +1,5 @@
 {
-  "summary": "Python scanner updated with CNN Official API, TradingView API, FRED, and AAII primary publisher sources",
-  "updatedAt": "2026-09-10T22:23:23.552321Z"
+  "summary": "Updated update_data.py to save both index.html and sentinel_live_data.json with full 20 indicators.",
+  "updatedAt": "2026-09-12T03:11:52.408231100Z",
+  "userFacing": true
 }
