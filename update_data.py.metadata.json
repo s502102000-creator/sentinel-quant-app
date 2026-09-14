@@ -1,5 +1,5 @@
 {
-  "summary": "Updated update_data.py to save both index.html and sentinel_live_data.json with full 20 indicators.",
-  "updatedAt": "2026-09-12T03:11:52.408231100Z",
+  "summary": "Upgraded update_data.py with dual primary source engines: Yahoo Finance v8 Chart API + TradingView Official Scanner API + CNN Dataviz Official API.",
+  "updatedAt": "2026-09-14T22:01:49.394048400Z",
   "userFacing": true
 }

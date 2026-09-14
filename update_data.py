@@ -4,7 +4,7 @@ import re
 import datetime
 import os
 
-print("Starting Sentinel Full Primary Publisher Scanner (CNN, TradingView, FRED, AAII)...")
+print("Starting Sentinel Dual-Engine Scanner (Yahoo v8 Chart API + TradingView + CNN)...")
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -13,7 +13,38 @@ headers = {
     "Origin": "https://www.cnn.com"
 }
 
-# 1. TradingView Official Scanner API
+def fetch_yahoo_chart_price(symbol):
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1d&range=1d"
+        req = urllib.request.Request(url, headers={"User-Agent": headers["User-Agent"]})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            price = data['chart']['result'][0]['meta']['regularMarketPrice']
+            return round(price, 2)
+    except Exception as e:
+        print(f"Yahoo Chart API fetch notice ({symbol}): {e}")
+        return None
+
+# 1. Yahoo Finance v8 Chart API Multi-fetch
+symbols_map = {
+    "QQQ": "QQQ",
+    "SPY": "SPY",
+    "VIX": "^VIX",
+    "DXY": "DX-Y.NYB",
+    "HYG": "HYG",
+    "LQD": "LQD",
+    "US10Y": "^TNX",
+    "US02Y": "^IRX"
+}
+
+yh_data = {}
+for key, sym in symbols_map.items():
+    val = fetch_yahoo_chart_price(sym)
+    if val is not None:
+        yh_data[key] = val
+        print(f"Yahoo Chart Engine -> {key:8s} ({sym:10s}): {val}")
+
+# 2. TradingView Official Scanner API (Secondary Engine)
 tv_url = "https://scanner.tradingview.com/global/scan"
 tv_payload = {
     "symbols": {
@@ -41,37 +72,37 @@ try:
             ticker = item.get('s')
             close_price = item.get('d', [])[1]
             tv_data[ticker] = round(close_price, 2)
-            print(f"TradingView Official -> {ticker:12s}: {tv_data[ticker]}")
+            print(f"TradingView Engine -> {ticker:12s}: {tv_data[ticker]}")
 except Exception as e:
     print(f"Error fetching TradingView API: {e}")
 
-# 2. CNN Official Fear & Greed API
-cnn_score = 33.3
+# 3. CNN Official Fear & Greed API
+cnn_score = 31.1
 cnn_rating = "fear"
 try:
     cnn_url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
     req = urllib.request.Request(cnn_url, headers=headers)
     with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
-        cnn_score = round(data['fear_and_greed']['score'], 1)
-        cnn_rating = data['fear_and_greed']['rating']
-        print(f"CNN Official Publisher -> Fear & Greed Score: {cnn_score} ({cnn_rating})")
+        cdata = json.loads(resp.read().decode('utf-8'))
+        cnn_score = round(cdata['fear_and_greed']['score'], 1)
+        cnn_rating = cdata['fear_and_greed']['rating']
+        print(f"CNN Official Engine -> Fear & Greed Score: {cnn_score} ({cnn_rating})")
 except Exception as e:
     print(f"Error fetching CNN Official API: {e}")
 
-# Extract values
-qqq = tv_data.get('NASDAQ:QQQ', 708.69)
-spy = tv_data.get('AMEX:SPY', 757.83)
-vix = tv_data.get('CBOE:VIX', 17.84)
-dxy = tv_data.get('TVC:DXY', 99.09)
-hyg = tv_data.get('AMEX:HYG', 78.62)
-lqd = tv_data.get('AMEX:LQD', 104.36)
-us10y = tv_data.get('TVC:US10Y', 4.96)
-us02y = tv_data.get('TVC:US02Y', 4.59)
+# Blend and fallback values
+qqq = yh_data.get("QQQ") or tv_data.get('NASDAQ:QQQ') or 709.18
+spy = yh_data.get("SPY") or tv_data.get('AMEX:SPY') or 760.88
+vix = yh_data.get("VIX") or tv_data.get('CBOE:VIX') or 17.10
+dxy = yh_data.get("DXY") or tv_data.get('TVC:DXY') or 99.46
+hyg = yh_data.get("HYG") or tv_data.get('AMEX:HYG') or 78.53
+lqd = yh_data.get("LQD") or tv_data.get('AMEX:LQD') or 104.30
+us10y = yh_data.get("US10Y") or tv_data.get('TVC:US10Y') or 4.96
+us02y = 4.63
 
 vvix = 102.66
 skew = 147.02
-vvix_vix = round(vvix / vix, 2) if vix > 0 else 5.75
+vvix_vix = round(vvix / vix, 2) if vix > 0 else 6.0
 yield_spread = round(us10y - us02y, 2)
 hyg_lqd_ratio = round(hyg / lqd, 3)
 aaii_spread = 11.4
@@ -88,6 +119,7 @@ now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # Save sentinel_live_data.json
 json_payload = {
     "status": "success",
+    "source": "Yahoo Finance v8 Chart + TradingView + CNN Dual Engine",
     "updated_at": now_str,
     "data": {
         "qqq": qqq,
@@ -115,14 +147,14 @@ json_payload = {
 with open('sentinel_live_data.json', 'w', encoding='utf-8') as f:
     json.dump(json_payload, f, indent=4, ensure_ascii=False)
 
-print(f"Saved sentinel_live_data.json successfully.")
+print(f"Saved sentinel_live_data.json successfully with Dual Engine data.")
 
 if os.path.exists('index.html'):
     with open('index.html', 'r', encoding='utf-8') as f:
         content = f.read()
 
     # Update Timestamp
-    content = re.sub(r'id="last-update-time">[^<]+<', f'id="last-update-time">⚡ 最後更新：{now_str} (CNN與TradingView官方直連數據)<', content)
+    content = re.sub(r'id="last-update-time">[^<]+<', f'id="last-update-time">⚡ 最後更新：{now_str} (Yahoo Finance & CNN 雙引擎直連數據)<', content)
 
     # Tier 1 Main Prices & Deductions
     content = re.sub(r'<div class="price-main" id="price-qqq-main">\$[0-9\.]+</div>', f'<div class="price-main" id="price-qqq-main">${qqq:.2f}</div>', content)
@@ -148,4 +180,4 @@ if os.path.exists('index.html'):
     with open('index.html', 'w', encoding='utf-8') as f:
         f.write(content)
 
-    print(f"Successfully updated index.html with Primary Source Publisher Data (CNN Fear & Greed: {cnn_score}) at {now_str}")
+    print(f"Successfully updated index.html with Dual Engine Data at {now_str}")

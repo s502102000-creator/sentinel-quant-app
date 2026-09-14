@@ -1,0 +1,4 @@
+{
+  "summary": "PowerShell script to fetch live TradingView and CNN data and update index.html, sentinel_live_data.json, and app_blended_dashboard.html immediately.",
+  "updatedAt": "2026-09-12T03:36:52.088249200Z"
+}
