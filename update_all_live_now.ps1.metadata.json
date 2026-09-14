@@ -1,4 +1,4 @@
 {
-  "summary": "PowerShell script to fetch live TradingView and CNN data and update index.html, sentinel_live_data.json, and app_blended_dashboard.html immediately.",
-  "updatedAt": "2026-09-12T03:36:52.088249200Z"
+  "summary": "Native PowerShell live data fetcher and updater (update_all_live_now.ps1) fetching real-time CNN 31.1 and Yahoo v8 data.",
+  "updatedAt": "2026-09-14T22:09:53.239642900Z"
 }

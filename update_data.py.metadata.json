@@ -1,5 +1,5 @@
 {
-  "summary": "Upgraded update_data.py with dual primary source engines: Yahoo Finance v8 Chart API + TradingView Official Scanner API + CNN Dataviz Official API.",
-  "updatedAt": "2026-09-14T22:01:49.394048400Z",
+  "summary": "Updated Python data update script with live Yahoo Finance v8 and CNN Dataviz fetchers for GitHub Actions.",
+  "updatedAt": "2026-09-14T22:13:26.713485600Z",
   "userFacing": true
 }
