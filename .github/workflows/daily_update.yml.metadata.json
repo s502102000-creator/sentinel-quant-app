@@ -1,5 +1,0 @@
-{
-  "summary": "Updated GitHub Actions daily_update.yml to trigger on push, manual dispatch, and daily market close cron.",
-  "updatedAt": "2026-09-12T03:23:33.910171300Z",
-  "userFacing": true
-}
