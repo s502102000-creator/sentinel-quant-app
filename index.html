@@ -928,6 +928,11 @@
             if (cnn) {
                 logDiag(`${cnn.status === 'ok' ? '✅' : '❌'} CNN Fear & Greed：${cnn.status === 'ok' ? '即時資料已取得' : `失敗；${escapeDiagText(cnn.error || '未回傳資料')}`}`);
             }
+            ['aaii', 'wei'].forEach(name => {
+                const provider = providers[name];
+                if (!provider) return;
+                logDiag(`${provider.status === 'ok' ? '✅' : '❌'} ${name.toUpperCase()}：${provider.status === 'ok' ? `最新${provider.frequency || ''}資料已取得` : `失敗；${escapeDiagText(provider.error || '未回傳資料')}`}`);
+            });
             const indicators = diagnostics.indicators || {};
             Object.entries(indicators).forEach(([name, item]) => {
                 const state = item.live ? '✅ 即時' : '⚠️ 備援/靜態';
@@ -1032,7 +1037,7 @@
                 String(now.getMinutes()).padStart(2, '0') + ':' +
                 String(now.getSeconds()).padStart(2, '0');
 
-            let qqq = 708.69, spy = 757.83, vix = 17.84, dxy = 99.09, hyg = 78.62, lqd = 104.36, us10y = 4.96, us02y = 4.59, vvix = 102.66, skew = 147.02, cnnScore = 33.3;
+            let qqq = 708.69, spy = 757.83, vix = 17.84, dxy = 99.09, hyg = 78.62, lqd = 104.36, us10y = 4.96, us02y = 4.59, vvix = 102.66, skew = 147.02, cnnScore = 33.3, aaiiSpread = 11.4, weiVal = 2.15;
             let dataSource = "";
 
             const ghResult = await fetchFromGitHubData();
@@ -1050,6 +1055,8 @@
                 if (d.vvix) vvix = d.vvix;
                 if (d.skew) skew = d.skew;
                 if (d.cnnScore) cnnScore = d.cnnScore;
+                if (Number.isFinite(d.aaiiSpread)) aaiiSpread = d.aaiiSpread;
+                if (Number.isFinite(d.weiVal)) weiVal = d.weiVal;
             } else {
                 const cnnObj = await fetchCNNOfficialFearGreed();
                 if (cnnObj && cnnObj.score) {
@@ -1082,6 +1089,12 @@
 
                 const cnnStatus = cnnScore <= 45 ? 'yellow' : (cnnScore >= 75 ? 'red' : 'green');
                 setCardAlertStyle('box-cnn', 'rem-cnn', 'tag-cnn', cnnStatus, cnnScore.toFixed(1), cnnStatus === 'yellow' ? '🟡 恐慌預警' : 'LIVE');
+
+                const aaiiStatus = aaiiSpread < -20 ? 'yellow' : 'green';
+                setCardAlertStyle('box-aaii', 'rem-aaii', 'tag-aaii', aaiiStatus, `${aaiiSpread >= 0 ? '+' : ''}${aaiiSpread.toFixed(1)}%`, aaiiStatus === 'yellow' ? '🟡 散戶悲觀' : '最新週資料');
+
+                const weiStatus = weiVal < 0 ? 'yellow' : 'green';
+                setCardAlertStyle('box-wei', 'rem-wei', 'tag-wei', weiStatus, `${weiVal >= 0 ? '+' : ''}${weiVal.toFixed(2)}%`, weiStatus === 'yellow' ? '🟡 經濟收縮' : '最新週資料');
 
                 const skewStatus = skew > 135 ? 'yellow' : 'green';
                 setCardAlertStyle('box-skew', 'rem-skew', 'tag-skew', skewStatus, skew.toFixed(2), skewStatus === 'yellow' ? '🟡 避險預警' : 'LIVE');

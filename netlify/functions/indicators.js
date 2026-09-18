@@ -77,6 +77,32 @@ function httpGet(url, headers = {}) {
     });
 }
 
+function httpGetText(url, headers = {}) {
+    return new Promise((resolve, reject) => {
+        const u = new URL(url);
+        const req = https.request({
+            hostname: u.hostname,
+            port: 443,
+            path: u.pathname + u.search,
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0', ...headers }
+        }, (res) => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
+                    return;
+                }
+                resolve(body);
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
+        req.end();
+    });
+}
+
 exports.handler = async function(event, context) {
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -92,6 +118,8 @@ exports.handler = async function(event, context) {
                     "NASDAQ:QQQ",
                     "AMEX:SPY",
                     "CBOE:VIX",
+                    "CBOE:VVIX",
+                    "CBOE:SKEW",
                     "TVC:DXY",
                     "AMEX:HYG",
                     "AMEX:LQD",
@@ -138,6 +166,41 @@ exports.handler = async function(event, context) {
             console.error("CNN server fetch error:", e.message);
         }
 
+        // 3. AAII publishes its Bull-Bear spread weekly. The current result is
+        // public on its official survey page; no member credential is stored here.
+        let aaiiSpread = 11.4;
+        let aaiiLive = false;
+        let aaiiError = null;
+        try {
+            const html = await httpGetText('https://www.aaii.com/sentimentsurvey');
+            const text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+            const match = text.match(/Bull[–-]Bear Spread:\s*([+−–-]?\d+(?:\.\d+)?)\s*pp/i);
+            if (!match) throw new Error('AAII Bull-Bear spread was not found in the response');
+            aaiiSpread = Number.parseFloat(match[1].replace('−', '-').replace('–', '-'));
+            aaiiLive = Number.isFinite(aaiiSpread);
+            if (!aaiiLive) throw new Error('AAII returned an invalid Bull-Bear spread');
+        } catch (e) {
+            aaiiError = e.message;
+            console.error('AAII fetch error:', e.message);
+        }
+
+        // 4. FRED exposes the Dallas Fed WEI series as a public CSV download.
+        let weiVal = 2.15;
+        let weiLive = false;
+        let weiError = null;
+        try {
+            const csv = await httpGetText('https://fred.stlouisfed.org/graph/fredgraph.csv?id=WEI');
+            const latest = csv.trim().split(/\r?\n/).reverse().find(line => /^\d{4}-\d{2}-\d{2},-?\d/.test(line));
+            if (!latest) throw new Error('No WEI observation was found in the FRED response');
+            const value = Number.parseFloat(latest.split(',')[1]);
+            if (!Number.isFinite(value)) throw new Error('FRED returned an invalid WEI observation');
+            weiVal = value;
+            weiLive = true;
+        } catch (e) {
+            weiError = e.message;
+            console.error('WEI fetch error:', e.message);
+        }
+
         // Extract Values & Calculations
         const fromTradingView = (ticker, fallback) => {
             const live = Number.isFinite(tvData[ticker]);
@@ -151,6 +214,8 @@ exports.handler = async function(event, context) {
         const lqdResult = fromTradingView('AMEX:LQD', 104.36);
         const us10yResult = fromTradingView('TVC:US10Y', 4.96);
         const us02yResult = fromTradingView('TVC:US02Y', 4.59);
+        const vvixResult = fromTradingView('CBOE:VVIX', 102.66);
+        const skewResult = fromTradingView('CBOE:SKEW', 147.02);
         const qqq = qqqResult.value;
         const spy = spyResult.value;
         const vix = vixResult.value;
@@ -159,8 +224,8 @@ exports.handler = async function(event, context) {
         const lqd = lqdResult.value;
         const us10y = us10yResult.value;
         const us02y = us02yResult.value;
-        const vvix = 102.66;
-        const skew = 147.02;
+        const vvix = vvixResult.value;
+        const skew = skewResult.value;
 
         const yieldSpread = Math.round((us10y - us02y) * 100) / 100;
         const hygLqdRatio = Math.round((hyg / lqd) * 1000) / 1000;
@@ -183,22 +248,32 @@ exports.handler = async function(event, context) {
                     tradingview: {
                         status: Object.keys(tvData).length ? 'ok' : 'failed',
                         received: Object.keys(tvData).length,
-                        expected: 8,
+                        expected: 10,
                         error: tradingViewError
                     },
                     cnn: {
                         status: cnnLive ? 'ok' : 'failed',
                         error: cnnError
+                    },
+                    aaii: {
+                        status: aaiiLive ? 'ok' : 'failed',
+                        frequency: 'weekly',
+                        error: aaiiError
+                    },
+                    wei: {
+                        status: weiLive ? 'ok' : 'failed',
+                        frequency: 'weekly',
+                        error: weiError
                     }
                 },
                 indicators: {
                     qqq: qqqResult, spy: spyResult, vix: vixResult, dxy: dxyResult,
                     hyg: hygResult, lqd: lqdResult, us10y: us10yResult, us02y: us02yResult,
                     cnnScore: { value: cnnScore, source: cnnLive ? 'CNN Fear & Greed' : 'fallback', live: cnnLive },
-                    vvix: { value: vvix, source: 'static snapshot', live: false },
-                    skew: { value: skew, source: 'static snapshot', live: false },
-                    aaiiSpread: { value: 11.4, source: 'static snapshot', live: false },
-                    weiVal: { value: 2.15, source: 'static snapshot', live: false }
+                    vvix: vvixResult,
+                    skew: skewResult,
+                    aaiiSpread: { value: aaiiSpread, source: aaiiLive ? 'AAII weekly survey' : 'fallback', live: aaiiLive },
+                    weiVal: { value: weiVal, source: weiLive ? 'FRED WEI weekly series' : 'fallback', live: weiLive }
                 }
             },
             data: {
@@ -219,8 +294,8 @@ exports.handler = async function(event, context) {
                 vvixVixRatio,
                 qqqDeduct,
                 spyDeduct,
-                aaiiSpread: 11.4,
-                weiVal: 2.15
+                aaiiSpread,
+                weiVal
             }
         };
 
