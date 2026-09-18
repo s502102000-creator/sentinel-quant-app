@@ -13,27 +13,28 @@ cnn_score = 31.1
 cnn_rating = "fear"
 
 def fetch_cnn():
-    # Strategy A: Python requests / urllib
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.cnn.com/markets/fear-and-greed",
-        "Origin": "https://www.cnn.com",
-        "Accept-Language": "en-US,en;q=0.9"
-    }
-    cnn_url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
-
+    # Strategy A: curl_cffi Chrome impersonation (bypasses Cloudflare / Fastly TLS bot check)
     try:
-        req = urllib.request.Request(cnn_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            cdata = json.loads(resp.read().decode('utf-8'))
+        from curl_cffi import requests as c_requests
+        headers = {
+            "Referer": "https://www.cnn.com/markets/fear-and-greed",
+            "Origin": "https://www.cnn.com"
+        }
+        r = c_requests.get(
+            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+            headers=headers,
+            impersonate="chrome120",
+            timeout=10
+        )
+        if r.status_code == 200:
+            cdata = r.json()
             if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
                 score = round(cdata['fear_and_greed']['score'], 1)
                 rating = cdata['fear_and_greed']['rating']
-                print(f"CNN Urllib Engine -> Score: {score} ({rating})")
+                print(f"CNN curl_cffi Engine -> Score: {score} ({rating})")
                 return score, rating
     except Exception as e:
-        print(f"CNN Urllib notice: {e}")
+        print(f"CNN curl_cffi notice: {e}")
 
     # Strategy B: System curl command
     try:
@@ -43,7 +44,7 @@ def fetch_cnn():
             '-H', 'Referer: https://www.cnn.com/markets/fear-and-greed',
             '-H', 'Origin: https://www.cnn.com',
             '-H', 'Accept: application/json, text/plain, */*',
-            cnn_url
+            'https://production.dataviz.cnn.io/index/fearandgreed/graphdata'
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if res.returncode == 0 and res.stdout.strip():
@@ -51,10 +52,28 @@ def fetch_cnn():
             if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
                 score = round(cdata['fear_and_greed']['score'], 1)
                 rating = cdata['fear_and_greed']['rating']
-                print(f"CNN Curl Engine -> Score: {score} ({rating})")
+                print(f"CNN System Curl Engine -> Score: {score} ({rating})")
                 return score, rating
     except Exception as e:
-        print(f"CNN Curl notice: {e}")
+        print(f"CNN System Curl notice: {e}")
+
+    # Strategy C: Standard urllib
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://www.cnn.com/markets/fear-and-greed",
+            "Origin": "https://www.cnn.com"
+        }
+        req = urllib.request.Request("https://production.dataviz.cnn.io/index/fearandgreed/graphdata", headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            cdata = json.loads(resp.read().decode('utf-8'))
+            if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
+                score = round(cdata['fear_and_greed']['score'], 1)
+                rating = cdata['fear_and_greed']['rating']
+                print(f"CNN Urllib Engine -> Score: {score} ({rating})")
+                return score, rating
+    except Exception as e:
+        print(f"CNN Urllib notice: {e}")
 
     return 31.1, "fear"
 

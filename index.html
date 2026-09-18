@@ -886,7 +886,7 @@
 
         const SENTINEL_LOCAL_SNAPSHOT = {
             "status": "success",
-            "updated_at": "2026-09-19 09:45:45",
+            "updated_at": "2026-09-19 10:01:04",
             "data": {
                 "qqq": 714.88,
                 "spy": 764.29,
@@ -929,7 +929,32 @@
                 logDiag(`ℹ️ 頻道 1 提示 (本機伺服器未開啟): ${e.message}`);
             }
 
-            // 2. Channel 2: GitHub Actions Daily Sync (./sentinel_live_data.json)
+            // 2. Cloud function: deploy this repository to Netlify (or run server.js)
+            // to make /api/indicators a real server-side, same-origin endpoint.
+            if (window.location.protocol.startsWith("http")) {
+                try {
+                    logDiag("Channel 2: connecting to cloud live API (/api/indicators)...");
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 12000);
+                    const res = await fetch("/api/indicators?t=" + Date.now(), {
+                        cache: "no-store",
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeout);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json && json.status === "success" && json.data) {
+                            logDiag(`Cloud live API succeeded (QQQ: $${json.data.qqq}, SPY: $${json.data.spy})`);
+                            return { data: json.data, source: "Cloud live API" };
+                        }
+                    }
+                    logDiag(`Channel 2 notice: cloud API HTTP ${res.status}`);
+                } catch (e) {
+                    logDiag(`Channel 2 notice (API unavailable or timed out): ${e.message}`);
+                }
+            }
+
+            // 3. GitHub Actions scheduled snapshot (./sentinel_live_data.json)
             if (window.location.protocol.startsWith("http")) {
                 try {
                     logDiag("頻道 2：讀取 GitHub Actions 雲端自動同步檔 (./sentinel_live_data.json)...");
@@ -939,7 +964,7 @@
                         const json = await res.json();
                         if (json && json.data) {
                             logDiag(`✅ 【成功】取得 GitHub 收盤全指標數據 (更新時間: ${json.updated_at})`);
-                            return { data: json.data, source: "GitHub Actions 雲端數據" };
+                            return { data: json.data, source: "GitHub Actions 排程快照" };
                         }
                     }
                 } catch (e) {
@@ -947,7 +972,7 @@
                 }
             }
 
-            // 3. Channel 3: Embedded Snapshot Defense
+            // 4. Embedded Snapshot Defense
             if (typeof SENTINEL_LOCAL_SNAPSHOT !== 'undefined' && SENTINEL_LOCAL_SNAPSHOT.data) {
                 logDiag(`✅ 【成功】載入內嵌防線快照數據 (資料時間: ${SENTINEL_LOCAL_SNAPSHOT.updated_at})`);
                 return { data: SENTINEL_LOCAL_SNAPSHOT.data, source: "全指標內嵌防線數據" };
@@ -1078,7 +1103,3 @@
     </script>
 </body>
 </html>
-
-
-
-

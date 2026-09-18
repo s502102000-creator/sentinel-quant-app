@@ -21,6 +21,10 @@ function httpPost(url, data, headers = {}) {
             let body = '';
             res.on('data', chunk => body += chunk);
             res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
+                    return;
+                }
                 try {
                     resolve(JSON.parse(body));
                 } catch (e) {
@@ -29,6 +33,7 @@ function httpPost(url, data, headers = {}) {
             });
         });
         req.on('error', reject);
+        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
         req.write(reqData);
         req.end();
     });
@@ -55,6 +60,10 @@ function httpGet(url, headers = {}) {
             let body = '';
             res.on('data', chunk => body += chunk);
             res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
+                    return;
+                }
                 try {
                     resolve(JSON.parse(body));
                 } catch (e) {
@@ -63,6 +72,7 @@ function httpGet(url, headers = {}) {
             });
         });
         req.on('error', reject);
+        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
         req.end();
     });
 }
