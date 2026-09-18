@@ -10,6 +10,9 @@ on:
     - cron: '0 21 * * 1-5'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   daily-scan-and-update:
     runs-on: ubuntu-latest
@@ -21,6 +24,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests urllib3
 
       - name: Run Market Close Scanner & Alert Engine
         run: python update_data.py

@@ -1,53 +1,108 @@
 import urllib.request
+import urllib.parse
 import json
 import re
 import datetime
 import os
+import subprocess
 
 print("Starting Sentinel Scanner with Live CNN and Yahoo v8 Engine...")
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.cnn.com/markets/fear-and-greed",
-    "Origin": "https://www.cnn.com"
-}
-
-# 1. CNN Official Fear & Greed API
+# 1. Fetch CNN Official Fear & Greed API
 cnn_score = 31.1
 cnn_rating = "fear"
-try:
-    cnn_url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
-    req = urllib.request.Request(cnn_url, headers=headers)
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        cdata = json.loads(resp.read().decode('utf-8'))
-        if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
-            cnn_score = round(cdata['fear_and_greed']['score'], 1)
-            cnn_rating = cdata['fear_and_greed']['rating']
-            print(f"CNN Official Engine -> Fear & Greed Score: {cnn_score} ({cnn_rating})")
-except Exception as e:
-    print(f"Error fetching CNN Official API: {e}")
 
-# 2. Yahoo Finance v8 REST API
-def get_yahoo_price(symbol, fallback):
+def fetch_cnn():
+    # Strategy A: Python requests / urllib
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.cnn.com/markets/fear-and-greed",
+        "Origin": "https://www.cnn.com",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    cnn_url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
+
+    try:
+        req = urllib.request.Request(cnn_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            cdata = json.loads(resp.read().decode('utf-8'))
+            if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
+                score = round(cdata['fear_and_greed']['score'], 1)
+                rating = cdata['fear_and_greed']['rating']
+                print(f"CNN Urllib Engine -> Score: {score} ({rating})")
+                return score, rating
+    except Exception as e:
+        print(f"CNN Urllib notice: {e}")
+
+    # Strategy B: System curl command
+    try:
+        cmd = [
+            'curl', '-s', '-k',
+            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            '-H', 'Referer: https://www.cnn.com/markets/fear-and-greed',
+            '-H', 'Origin: https://www.cnn.com',
+            '-H', 'Accept: application/json, text/plain, */*',
+            cnn_url
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if res.returncode == 0 and res.stdout.strip():
+            cdata = json.loads(res.stdout)
+            if 'fear_and_greed' in cdata and 'score' in cdata['fear_and_greed']:
+                score = round(cdata['fear_and_greed']['score'], 1)
+                rating = cdata['fear_and_greed']['rating']
+                print(f"CNN Curl Engine -> Score: {score} ({rating})")
+                return score, rating
+    except Exception as e:
+        print(f"CNN Curl notice: {e}")
+
+    return 31.1, "fear"
+
+c_score, c_rating = fetch_cnn()
+if c_score is not None:
+    cnn_score = c_score
+    cnn_rating = c_rating
+
+# 2. Fetch Yahoo Finance Prices
+def fetch_yahoo_price(symbol, fallback):
+    # Strategy A: Curl
     try:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1d&range=1d"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        cmd = [
+            'curl', '-s', '-k',
+            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            url
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if res.returncode == 0 and res.stdout.strip():
+            data = json.loads(res.stdout)
+            price = data['chart']['result'][0]['meta']['regularMarketPrice']
+            if price:
+                return round(price, 2)
+    except Exception as e:
+        print(f"Yahoo Curl notice ({symbol}): {e}")
+
+    # Strategy B: Urllib
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?interval=1d&range=1d"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode('utf-8'))
             price = data['chart']['result'][0]['meta']['regularMarketPrice']
-            return round(price, 2)
+            if price:
+                return round(price, 2)
     except Exception as e:
-        print(f"Notice fetching Yahoo symbol {symbol}: {e}")
-        return fallback
+        print(f"Yahoo Urllib notice ({symbol}): {e}")
 
-qqq = get_yahoo_price("QQQ", 709.18)
-spy = get_yahoo_price("SPY", 760.88)
-vix = get_yahoo_price("^VIX", 17.10)
-dxy = get_yahoo_price("DX-Y.NYB", 99.46)
-hyg = get_yahoo_price("HYG", 78.53)
-lqd = get_yahoo_price("LQD", 104.30)
-us10y = get_yahoo_price("^TNX", 4.96)
+    return fallback
+
+qqq = fetch_yahoo_price("QQQ", 709.18)
+spy = fetch_yahoo_price("SPY", 760.88)
+vix = fetch_yahoo_price("^VIX", 17.10)
+dxy = fetch_yahoo_price("DX-Y.NYB", 99.46)
+hyg = fetch_yahoo_price("HYG", 78.53)
+lqd = fetch_yahoo_price("LQD", 104.30)
+us10y = fetch_yahoo_price("^TNX", 4.96)
 us02y = 4.63
 vvix = 102.66
 skew = 147.02
@@ -63,7 +118,7 @@ spy_deduct = round(((spy - spy_60ema) / spy_60ema) * 100, 2)
 
 now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Save sentinel_live_data.json
+# 3. Write sentinel_live_data.json
 json_payload = {
     "status": "success",
     "source": f"CNN Official ({cnn_score}) + Yahoo v8 Engine",
