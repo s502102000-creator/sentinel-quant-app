@@ -1,0 +1,5 @@
+{
+  "summary": "Batch script to launch local Python backend server and auto-open browser at http://localhost:8080.",
+  "updatedAt": "2026-09-12T03:40:22.987683400Z",
+  "userFacing": true
+}
