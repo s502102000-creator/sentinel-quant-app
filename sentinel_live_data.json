@@ -1,0 +1,26 @@
+﻿{
+    "status":  "success",
+    "data":  {
+                 "cnnRating":  "fear",
+                 "skew":  147.02,
+                 "vix":  14.81,
+                 "vvixVixRatio":  6.93,
+                 "yieldSpread":  0.37,
+                 "vvix":  102.66,
+                 "spy":  761.69,
+                 "cnnScore":  29.1,
+                 "spyDeduct":  0.85,
+                 "qqq":  721.45,
+                 "hyg":  78.53,
+                 "hygLqdRatio":  0.750,
+                 "aaiiSpread":  11.4,
+                 "lqd":  104.7,
+                 "us02y":  4.63,
+                 "qqqDeduct":  1.79,
+                 "us10y":  5.00,
+                 "dxy":  100.22,
+                 "weiVal":  2.15
+             },
+    "source":  "CNN Official (31.1) + Yahoo v8 Engine",
+    "updated_at":  "2026-09-19 09:45:45"
+}

@@ -1,0 +1,17 @@
+{
+  "short_name": "哨兵量化",
+  "name": "哨兵量化 - 美股對沖與診斷 App",
+  "icons": [
+    {
+      "src": "sentinel_logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "display": "standalone",
+  "orientation": "portrait"
+}

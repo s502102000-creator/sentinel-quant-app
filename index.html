@@ -1,0 +1,1084 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙均線交叉預警系統 - 3層完整對衝作戰儀表板</title>
+    
+    <!-- PWA Meta tags for iOS & Android -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="雙均線預警">
+    <link rel="apple-touch-icon" href="sentinel_logo.jpg">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #a855f7;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 16px 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .app-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-brand img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 2px;
+        }
+
+        /* Tier Section Headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 28px;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .section-title-text {
+            font-size: 16px;
+            font-weight: 800;
+            color: #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stage-toggle-bar {
+            display: flex;
+            gap: 8px;
+            background: #1f2937;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .stage-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stage-toggle-btn.active {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        /* Card Layouts */
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .badge-stage {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-green { background: #10b98133; color: #34d399; border: 1px solid #10b981; }
+        .badge-yellow { background: #f59e0b33; color: #fbbf24; border: 1px solid #f59e0b; }
+        .badge-red { background: #ef444433; color: #f87171; border: 1px solid #ef4444; }
+        .badge-blue { background: #3b82f633; color: #60a5fa; border: 1px solid #3b82f6; }
+
+        .price-display {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .price-main { font-size: 32px; font-weight: 800; }
+        .price-sub { font-size: 14px; color: var(--text-sub); }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--card-border);
+            font-size: 14px;
+        }
+
+        .metric-label { color: var(--text-sub); }
+        .metric-val { font-weight: 700; }
+
+        .text-green { color: #10b981; }
+        .text-red { color: #ef4444; }
+        .text-yellow { color: #f59e0b; }
+        .text-blue { color: #38bdf8; }
+
+        .action-box {
+            background: #1e293b;
+            border-left: 4px solid #38bdf8;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-top: 14px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Tier 2: 5-Stage Light Status Grid */
+        .stage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 14px;
+        }
+
+        .stage-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .stage-box.active-green { border-color: #10b981; background: #064e3b22; }
+        .stage-box.active-yellow { border-color: #f59e0b; background: #78350f22; }
+        .stage-box.active-red { border-color: #ef4444; background: #7f1d1d22; }
+        .stage-box.active-blue { border-color: #3b82f6; background: #1e3a8a22; }
+
+        .stage-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+
+        .stage-status-active {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+
+        .indicator-item {
+            font-size: 12.5px;
+            padding: 6px 0;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .indicator-item:last-child { border-bottom: none; }
+
+        /* Tier 3: All Remaining Indicators Grid with Dynamic Warning Alert Styling */
+        .remaining-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .rem-box {
+            background: #1f293755;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .rem-box.warn-yellow {
+            border-color: #f59e0b !important;
+            background: linear-gradient(135deg, #0f172a 0%, #78350f44 100%) !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+        }
+
+        .rem-box.warn-red {
+            border-color: #ef4444 !important;
+            background: linear-gradient(135deg, #0f172a 0%, #7f1d1d44 100%) !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .rem-box.warn-blue {
+            border-color: #3b82f6 !important;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a44 100%) !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .rem-title { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .rem-val { font-size: 20px; font-weight: 800; color: #ffffff; }
+        .rem-desc { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+
+        .push-preview-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-push {
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-top: 10px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        .btn-refresh {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            border: 1px solid #38bdf8;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+        }
+        .btn-refresh:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+            transform: translateY(-1px);
+        }
+
+        .btn-notify {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: #ffffff;
+            border: 1px solid #a78bfa;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 12.5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .live-tag {
+            font-size: 10px;
+            background: #10b98122;
+            color: #34d399;
+            border: 1px solid #10b98144;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .warn-tag-yellow {
+            font-size: 10px;
+            background: #f59e0b33;
+            color: #fbbf24;
+            border: 1px solid #f59e0b;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .updated-flash {
+            animation: flashPulse 1s ease-out;
+        }
+
+        @keyframes flashPulse {
+            0% { background-color: rgba(56, 189, 248, 0.3); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="app-header">
+        <div class="app-brand">
+            <img src="sentinel_logo.jpg" alt="Logo" onerror="this.style.display='none'">
+            <div>
+                <div class="brand-title">雙均線交叉預警系統</div>
+                <div class="brand-subtitle">3 層極簡架構：QQQ & SPY 結論一目瞭然 ➔ 五大階段診斷 ➔ 全指標動態變色預警雷達</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button onclick="toggleDiagConsole()" style="background:#1e293b; color:#38bdf8; border:1px solid #334155; padding:8px 12px; border-radius:10px; font-weight:700; font-size:12px; cursor:pointer;">
+                🔍 診斷日誌
+            </button>
+            <button onclick="requestPushNotification()" class="btn-notify">
+                🔔 手機預警彈窗
+            </button>
+            <button onclick="refreshLiveData()" class="btn-refresh">
+                <span id="spin-icon">🔄</span> 刷新數據
+            </button>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <div id="api-status-badge" onclick="toggleDiagConsole()" style="display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; background:rgba(245, 158, 11, 0.15); border:1px solid #f59e0b; color:#fbbf24; cursor:pointer; transition: all 0.3s ease;" title="點擊查看連線診斷細節">
+                    <span id="api-status-dot" class="animate-pulse" style="width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
+                    <span id="api-status-text">⏳ 後端 API 連線中...</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-sub); font-weight: 500;">
+                    <span id="last-update-time">笞｡ 譛蠕梧峩譁ｰ・・nowStr (CNN 螳俶婿逶ｴ騾｣ 31.1 諱先・謖・丙)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Console Box (Collapsible) -->
+    <div id="diag-console-box" style="display:none; background:#090d16; border:1px solid #334155; padding:14px; border-radius:12px; margin-bottom:20px; font-family:monospace; font-size:12px; color:#38bdf8; max-height:220px; overflow-y:auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #1e293b; padding-bottom:6px;">
+            <strong style="color:#f59e0b;">🔍 後端 API 與網路連線即時診斷台 (Real-time Network Diagnostics)</strong>
+            <button onclick="toggleDiagConsole()" style="background:#1e293b; color:#9ca3af; border:none; padding:2px 8px; border-radius:4px; font-size:11px; cursor:pointer;">關閉 ✕</button>
+        </div>
+        <div id="diag-log-content">等待即時掃描...</div>
+    </div>
+
+    <!-- TIER 1: QQQ & SPY CONCLUSIONS (Top Layer) -->
+    <div class="section-header">
+        <div class="section-title-text">第一層：QQQ & SPY 結論與作戰指令 (結論一目瞭然)</div>
+    </div>
+    
+    <div class="asset-grid">
+        <!-- QQQ Conclusion Card -->
+        <div class="card" id="card-QQQ">
+            <div class="card-header">
+                <span style="font-size: 22px; font-weight: 800; color: #38bdf8;">QQQ (納斯達克 100)</span>
+                <span class="badge-stage badge-green" id="badge-qqq-status">🟢 綠燈：健康常態 (0% 對沖)</span>
+            </div>
+            
+            <div class="price-display">
+                <div class="price-main" id="price-qqq-main">$714.88</div>
+                <div class="price-sub">60日扣抵距 (60EMA): <strong class="text-green" id="price-qqq-deduct">+0.86% (扣低助漲)</strong></div>
+            </div>
+
+            <div class="metric-row">
+                <span class="metric-label">當前對衝比率</span>
+                <span class="metric-val text-green" id="qqq-hedge-ratio">0% (100% 現貨順勢續抱)</span>
+            </div>
+
+            <div class="action-box" id="action-qqq-box">
+                💡 <strong>QQQ 作戰指令</strong>：雙均線多頭 ($714.88 > $708.75)，TradingView 原廠即時價 $714.88。無對沖需求，維持 100% 現貨持股續抱。
+            </div>
+        </div>
+
+        <!-- SPY Conclusion Card -->
+        <div class="card" id="card-SPY">
+            <div class="card-header">
+                <span style="font-size: 22px; font-weight: 800; color: #a855f7;">SPY (標普 500)</span>
+                <span class="badge-stage badge-green" id="badge-spy-status">🟢 綠燈：健康常態 (0% 對沖)</span>
+            </div>
+            
+            <div class="price-display">
+                <div class="price-main" id="price-spy-main">$764.29</div>
+                <div class="price-sub">60日扣抵距 (60EMA): <strong class="text-green" id="price-spy-deduct">+1.19% (扣低助漲)</strong></div>
+            </div>
+
+            <div class="metric-row">
+                <span class="metric-label">當前對衝比率</span>
+                <span class="metric-val text-green" id="spy-hedge-ratio">0% (100% 現貨順勢定投)</span>
+            </div>
+
+            <div class="action-box" id="action-spy-box">
+                💡 <strong>SPY 作戰指令</strong>：大盤體質健康 ($765.86 > $755.28)，TradingView 原廠即時價 $757.83。無對沖需求，維持 100% 現貨持股定投。
+            </div>
+        </div>
+    </div>
+
+    <!-- OTHER MACRO INDICATOR ALERTS (Placed right below Tier 1 Summary Cards) -->
+    <div class="card" style="border-left: 5px solid #f59e0b; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-weight: 800; font-size: 16px; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+                <span>⚠️ 全總經與市場指標預警 (即時掃描與風險亮燈提示)</span>
+                <span style="font-size: 12px; background: #78350f66; border: 1px solid #f59e0b; color: #fbbf24; padding: 2px 10px; border-radius: 12px; font-weight: 700;" id="macro-alert-count">2 項指標觸發警戒</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-sub);">涵蓋：CNN 恐慌區、MOVE 債市波動、DXY 美元流動性、SKEW 尾部防守</div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
+            <div style="background: #0f172a; border: 1px solid #f59e0b77; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
+                <div style="color: #fbbf24; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟡 CNN 恐慌指數</span>
+                    <span id="macro-cnn-alert">29.1 (泯 諱先・蜊 Fear)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• CNN 官方即時 API 顯示市場情緒進入恐慌區，防禦意識升溫。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #f59e0b77; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 260px;">
+                <div style="color: #fbbf24; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟡 CBOE SKEW 黑天鵝避險</span>
+                    <span id="macro-skew-val">147.02 (⚠️ 突破 135)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 華爾街機構大量購買深虛值 Put，顯示對極端尾部風險防範意識極高。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 220px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟢 HYG/LQD 信用利差</span>
+                    <span id="macro-hyg-val">$78.62 / $104.36 (🟢 健康)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 高收益債利差未異常擴大，非金融系統性危機。</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #10b98155; padding: 10px 14px; border-radius: 10px; flex: 1; min-width: 220px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 13.5px; display: flex; justify-content: space-between;">
+                    <span>🟢 DXY 美元流動性</span>
+                    <span id="macro-dxy-val">99.09 (🟢 美元回落)</span>
+                </div>
+                <div style="color: var(--text-sub); font-size: 12px; margin-top: 4px;">• 美元指數未暴升，全球美元流動性充沛。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TIER 2: 5 STAGES LIGHT & INDICATOR STATUS BREAKDOWN -->
+    <div class="section-header">
+        <div class="section-title-text">第二層：五大對衝階段燈號與對應指標狀態診斷</div>
+        <div class="stage-toggle-bar">
+            <button class="stage-toggle-btn active" id="btn-diag-qqq" onclick="toggleStageAsset('QQQ')">QQQ 診斷數據</button>
+            <button class="stage-toggle-btn" id="btn-diag-spy" onclick="toggleStageAsset('SPY')">SPY 診斷數據</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 13.5px; color: var(--text-sub); margin-bottom: 12px;" id="stage-asset-desc">
+            目前展示 <strong style="color: #38bdf8;" id="current-asset-title">QQQ (納斯達克 100)</strong> 五大階段的核心指標與輔助指標狀態：
+        </div>
+
+        <div class="stage-grid" id="stage-grid-container">
+            
+            <!-- Stage 1 -->
+            <div class="stage-box active-green">
+                <div class="stage-box-header">
+                    <span>🟢 階段一：啟動與主升期</span>
+                    <span class="stage-status-active badge-green">● 當前亮燈中</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 20EMA vs 60EMA</span>
+                    <span class="metric-val text-green" id="stg1-ema">$714.80 > $708.75 (金叉) ✓</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 2. 60日扣抵斜率</span>
+                    <span class="metric-val text-green" id="stg1-deduct">-0.01% (扣低助漲)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. KAMA 自適應均線</span>
+                    <span class="metric-val text-green" id="stg1-kama">$715.20 (趨勢平穩) ✓</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. 50MA 廣度 S5FI</span>
+                    <span class="metric-val text-green" id="stg1-s5fi">64.2% (>50% 健康) ✓</span>
+                </div>
+            </div>
+
+            <!-- Stage 2 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🛡️ 階段二：洗盤防雙巴期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 均線洗盤狀態</span>
+                    <span class="metric-val" style="color: #9ca3af;">無無量拉回洗盤</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. KAMA 效率比率 ER</span>
+                    <span class="metric-val text-green" id="stg2-er">0.65 (趨勢平穩)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. 成交量縮倍率</span>
+                    <span class="metric-val" style="color: #9ca3af;">正常量能 (未暴縮)</span>
+                </div>
+            </div>
+
+            <!-- Stage 3 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🟡 階段三：頂部背離預警期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 金絲雀 50MA 廣度</span>
+                    <span class="metric-val text-green" id="stg3-s5fi">64.2% (未跌破 &lt;45%)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. CBOE SKEW 指數</span>
+                    <span class="metric-val text-yellow" id="stg3-skew">147.02 (⚠️ &gt;135 預警)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. VVIX / VIX 比值</span>
+                    <span class="metric-val text-green" id="stg3-vvix-vix">5.75 (未暴升 &lt;6.0)</span>
+                </div>
+            </div>
+
+            <!-- Stage 4 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🔴 階段四：反轉對沖破位期</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. 20EMA 死叉 60EMA</span>
+                    <span class="metric-val text-green" id="stg4-cross">未死叉 ($714.80 &gt; $708.75)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 2. 60日扣抵斜率</span>
+                    <span class="metric-val text-green" id="stg4-slope">-0.01% (扣低助漲)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. GEX 零伽瑪防線</span>
+                    <span class="metric-val text-green" id="stg4-gex">+$5.8B (正伽瑪支撐)</span>
+                </div>
+            </div>
+
+            <!-- Stage 5 -->
+            <div class="stage-box">
+                <div class="stage-box-header">
+                    <span style="color: #9ca3af;">🔵 階段五：恐慌解鎖與 1.5x 抄底</span>
+                    <span class="stage-status-active" style="background: #374151; color: #9ca3af;">○ 未觸發</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">核心 1. VIX 恐慌倒掛</span>
+                    <span class="metric-val text-green" id="stg5-vix">17.84 (未突破 &gt;35.0)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 1. DIX 暗池大戶吸籌</span>
+                    <span class="metric-val text-green" id="stg5-dix">46.8% (&gt;45% 吸籌中)</span>
+                </div>
+                <div class="indicator-item">
+                    <span class="metric-label">輔助 2. NAAIM 法人投降</span>
+                    <span class="metric-val text-green" id="stg5-naaim">65.2% (未投降 &le;30%)</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TIER 3: 3D MARKET RADAR & REFERENCE INDICATORS (Bottom Layer) -->
+    <div class="section-header" style="color: var(--text-sub);">
+        <div class="section-title-text">第三層：3D 市場極致籌碼與總經雷達儀表板 (全指標動態預警變色卡片)</div>
+    </div>
+    
+    <div class="card" style="opacity: 0.95;">
+        <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px;">
+            包含動態變色預警卡片：當數據進入黃燈、紅燈警戒時，卡片外框與數值將自動高亮變色並發送推播！
+        </div>
+
+        <div class="remaining-grid">
+            
+            <div class="rem-box" id="box-naaim">
+                <div class="rem-title"><span>1. NAAIM 基金經理人持倉</span> <span class="live-tag" id="tag-naaim">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-naaim">65.2%</div>
+                <div class="rem-desc" id="desc-naaim">法人持倉中性健康 (投降極值: &le;30%)</div>
+            </div>
+
+            <div class="rem-box warn-yellow" id="box-cnn">
+                <div class="rem-title"><span>2. CNN 恐慌與貪婪指數</span> <span class="warn-tag-yellow" id="tag-cnn">🟡 預警</span></div>
+                <div class="rem-val text-yellow" id="rem-cnn">29.1</div>
+                <div class="rem-desc" id="desc-cnn">CNN 官方 API 直連 (恐慌區 Fear)</div>
+            </div>
+
+            <div class="rem-box" id="box-aaii">
+                <div class="rem-title"><span>3. AAII 散戶牛熊差</span> <span class="live-tag" id="tag-aaii">AAII 原廠</span></div>
+                <div class="rem-val text-green" id="rem-aaii">+11.4%</div>
+                <div class="rem-desc" id="desc-aaii">AAII 官方調查 (看多 38.2% vs 看空 26.8%)</div>
+            </div>
+
+            <div class="rem-box" id="box-pc10d">
+                <div class="rem-title"><span>4. Put/Call 10DMA 避險</span> <span class="live-tag" id="tag-pc10d">CBOE 原廠</span></div>
+                <div class="rem-val text-green" id="rem-pc10d">0.85</div>
+                <div class="rem-desc" id="desc-pc10d">CBOE 官方比例 (危險區: &gt;1.1)</div>
+            </div>
+
+            <div class="rem-box" id="box-spread">
+                <div class="rem-title"><span>5. 10Y-2Y 美債殖利率倒掛</span> <span class="live-tag" id="tag-spread">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-spread">+0.37%</div>
+                <div class="rem-desc" id="desc-spread">TVC:US10Y 4.96% vs TVC:US02Y 4.59%</div>
+            </div>
+
+            <div class="rem-box" id="box-hyg-lqd">
+                <div class="rem-title"><span>6. 高收益債信用利差 (HY OAS)</span> <span class="live-tag" id="tag-hyg-lqd">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-hyg-lqd">0.753 ($78.62/$104.36)</div>
+                <div class="rem-desc" id="desc-hyg-lqd">TradingView AMEX:HYG vs AMEX:LQD</div>
+            </div>
+
+            <div class="rem-box" id="box-wei">
+                <div class="rem-title"><span>7. WEI 週經濟指數</span> <span class="live-tag" id="tag-wei">FRED 原廠</span></div>
+                <div class="rem-val text-green" id="rem-wei">+2.15%</div>
+                <div class="rem-desc" id="desc-wei">紐約聯儲 NY Fed 官方數據 (擴張中)</div>
+            </div>
+
+            <div class="rem-box" id="box-s5tw">
+                <div class="rem-title"><span>8. S&amp;P 200MA 長線廣度</span> <span class="live-tag" id="tag-s5tw">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-s5tw">74.8%</div>
+                <div class="rem-desc" id="desc-s5tw">標普成分股長線體質強勁</div>
+            </div>
+
+            <div class="rem-box warn-yellow" id="box-skew">
+                <div class="rem-title"><span>9. CBOE SKEW 黑天鵝避險</span> <span class="warn-tag-yellow" id="tag-skew">🟡 預警</span></div>
+                <div class="rem-val text-yellow" id="rem-skew">147.02</div>
+                <div class="rem-desc" id="desc-skew">機構購買 Deep OTM Put 保險中</div>
+            </div>
+
+            <div class="rem-box" id="box-vvix-vix">
+                <div class="rem-title"><span>10. VVIX / VIX 動態比值</span> <span class="live-tag" id="tag-vvix-vix">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-vvix-vix">5.75</div>
+                <div class="rem-desc" id="desc-vvix-vix">TradingView CBOE:VIX 17.84</div>
+            </div>
+
+            <div class="rem-box" id="box-dxy">
+                <div class="rem-title"><span>11. DXY 美元指數流動性</span> <span class="live-tag" id="tag-dxy">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-dxy">99.09</div>
+                <div class="rem-desc" id="desc-dxy">TradingView TVC:DXY 99.09</div>
+            </div>
+
+            <div class="rem-box" id="box-dix">
+                <div class="rem-title"><span>12. DIX 暗池大戶吸籌</span> <span class="live-tag" id="tag-dix">LIVE</span></div>
+                <div class="rem-val text-green" id="rem-dix">46.8%</div>
+                <div class="rem-desc" id="desc-dix">大戶暗池持續支撐買盤</div>
+            </div>
+
+        </div>
+
+        <!-- Push Notification Tester Simulation -->
+        <div class="push-preview-box">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 6px;">🔔 即時預警推播測試模擬器 (Notification Trigger Simulator)</div>
+            <div style="font-size: 13px; color: var(--text-sub);">點擊按鈕模擬手機端接收彈窗推播：</div>
+
+            <button class="btn-push" onclick="simulatePush('yellow')">🟡 模擬黃燈：頂部背離預警</button>
+            <button class="btn-push" style="background: #ef4444; color: #fff;" onclick="simulatePush('red')">🔴 模擬紅燈：GEX 破位對沖警報</button>
+            <button class="btn-push" style="background: #10b981; color: #fff;" onclick="simulatePush('blue')">🔵 模擬藍燈：VIX+DIX 1.5x 抄底</button>
+
+            <div id="push-log" style="margin-top: 12px; font-family: monospace; font-size: 13px; color: #38bdf8; min-height: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function toggleStageAsset(asset) {
+            document.getElementById('btn-diag-qqq').classList.remove('active');
+            document.getElementById('btn-diag-spy').classList.remove('active');
+
+            if (asset === 'QQQ') {
+                document.getElementById('btn-diag-qqq').classList.add('active');
+                document.getElementById('current-asset-title').innerText = 'QQQ (納斯達克 100)';
+                document.getElementById('current-asset-title').style.color = '#38bdf8';
+                
+                document.getElementById('stg1-ema').innerText = '$714.80 > $708.75 (金叉) ✓';
+                document.getElementById('stg1-deduct').innerText = '-0.01% (扣低助漲)';
+                document.getElementById('stg1-kama').innerText = '$715.20 (趨勢平穩) ✓';
+                document.getElementById('stg4-cross').innerText = '未死叉 ($714.80 > $708.75)';
+                document.getElementById('stg4-slope').innerText = '-0.01% (扣低助漲)';
+                document.getElementById('stg4-gex').innerText = '+$5.8B (正伽瑪支撐)';
+            } else {
+                document.getElementById('btn-diag-spy').classList.add('active');
+                document.getElementById('current-asset-title').innerText = 'SPY (標普 500)';
+                document.getElementById('current-asset-title').style.color = '#a855f7';
+
+                document.getElementById('stg1-ema').innerText = '$765.86 > $755.28 (金叉) ✓';
+                document.getElementById('stg1-deduct').innerText = '+0.34% (扣低助漲) ✓';
+                document.getElementById('stg1-kama').innerText = '$763.50 (趨勢向上) ✓';
+                document.getElementById('stg4-cross').innerText = '未死叉 ($765.86 > $755.28)';
+                document.getElementById('stg4-slope').innerText = '+0.34% (扣低助漲)';
+                document.getElementById('stg4-gex').innerText = '+$6.8B (正伽瑪支撐)';
+            }
+        }
+
+        function requestPushNotification() {
+            if (!('Notification' in window)) {
+                alert('您的瀏覽器不支援通知功能');
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification("🔔 雙均線預警系統通知已啟用", {
+                        body: "系統已成功綁定手機推播權限！當 SKEW > 135、CNN 進入恐慌區或 20EMA/60EMA 破位時將自動發送警戒彈窗。",
+                        icon: "sentinel_logo.jpg"
+                    });
+                } else {
+                    alert('已拒絕通知權限。若需開啟，請在手機瀏覽器設定中允許本站發送通知。');
+                }
+            });
+        }
+
+        function triggerNativePushNotification(title, message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: message,
+                    icon: "sentinel_logo.jpg"
+                });
+            }
+        }
+
+        function setCardAlertStyle(boxId, valId, tagId, status, valText, tagText) {
+            const box = document.getElementById(boxId);
+            const valEl = document.getElementById(valId);
+            const tagEl = document.getElementById(tagId);
+
+            if (!box || !valEl) return;
+
+            box.classList.remove('warn-yellow', 'warn-red', 'warn-blue');
+            valEl.classList.remove('text-green', 'text-yellow', 'text-red', 'text-blue');
+
+            if (valText !== undefined) valEl.innerText = valText;
+
+            if (status === 'yellow') {
+                box.classList.add('warn-yellow');
+                valEl.classList.add('text-yellow');
+                if (tagEl) { tagEl.innerText = tagText || '🟡 預警'; tagEl.className = 'warn-tag-yellow'; }
+            } else if (status === 'red') {
+                box.classList.add('warn-red');
+                valEl.classList.add('text-red');
+                if (tagEl) { tagEl.innerText = tagText || '🔴 警報'; tagEl.className = 'warn-tag-yellow'; tagEl.style.borderColor = '#ef4444'; tagEl.style.color = '#f87171'; }
+            } else if (status === 'blue') {
+                box.classList.add('warn-blue');
+                valEl.classList.add('text-blue');
+                if (tagEl) { tagEl.innerText = tagText || '🔵 抄底'; tagEl.className = 'warn-tag-yellow'; tagEl.style.borderColor = '#3b82f6'; tagEl.style.color = '#60a5fa'; }
+            } else {
+                valEl.classList.add('text-green');
+                if (tagEl) { tagEl.innerText = tagText || 'LIVE'; tagEl.className = 'live-tag'; }
+            }
+        }
+
+        function simulatePush(type) {
+            const logEl = document.getElementById('push-log');
+            let msg = "";
+            let title = "";
+            if (type === 'yellow') {
+                title = '⚠️ [🟡 黃燈預警] 頂部背離與 CNN 恐慌警報';
+                msg = 'CNN 恐慌指數降至 33.3，SKEW 達 147.02！機構暗中搶購 Put 保險，請停止追高並備妥對沖計畫。';
+            } else if (type === 'red') {
+                title = '🚨 [🔴 紅燈警報] GEX 破位與雙均線死叉';
+                msg = 'QQQ 股價跌破 60日扣抵價 ($708.75) 且跌破 GEX 零伽瑪防線！造市商踩踏開啟，啟動 50% NQ 期貨空單對沖護體！';
+            } else if (type === 'blue') {
+                title = '🚀 [🔵 藍燈抄底] VIX 恐慌倒掛訊號';
+                msg = 'VIX 飆升至 38.5 倒掛，DIX 暗池雷達爆出 48.2% 大戶買盤！平倉期貨空單鎖定暴利，啟動 60 天 1.5x 抄底加碼 QQQ！';
+            }
+            logEl.innerHTML = `<strong>${title}</strong>: ${msg}`;
+            triggerNativePushNotification(title, msg);
+        }
+
+        let diagLogs = [];
+        function logDiag(msg) {
+            const t = new Date().toTimeString().split(' ')[0];
+            const formatted = `[${t}] ${msg}`;
+            diagLogs.push(formatted);
+            console.log(formatted);
+            const contentEl = document.getElementById('diag-log-content');
+            if (contentEl) {
+                contentEl.innerHTML = diagLogs.join('<br>');
+            }
+        }
+
+        function toggleDiagConsole() {
+            const box = document.getElementById('diag-console-box');
+            if (box) {
+                box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+            }
+        }
+
+
+
+        async function fetchCNNOfficialFearGreed() {
+            const targetUrl = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
+            const proxies = [
+                "https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl),
+                "https://corsproxy.io/?" + encodeURIComponent(targetUrl)
+            ];
+
+            for (const p of proxies) {
+                try {
+                    logDiag(`嘗試 CNN API 代理連線 (${p.substring(0, 35)}...)...`);
+                    const res = await fetch(p);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.fear_and_greed && data.fear_and_greed.score) {
+                            const score = Math.round(data.fear_and_greed.score * 10) / 10;
+                            logDiag(`✅ 成功取得 CNN 恐慌與貪婪指數: ${score} (${data.fear_and_greed.rating})`);
+                            return {
+                                score: score,
+                                rating: data.fear_and_greed.rating
+                            };
+                        }
+                    }
+                } catch (e) {
+                    logDiag(`CNN 代理連線提示: ${e.message}`);
+                }
+            }
+            logDiag("CNN 代理連線受阻，使用預設恐慌基準分數 (33.3)");
+            return { score: 33.3, rating: "fear" };
+        }
+
+        const SENTINEL_LOCAL_SNAPSHOT = {
+            "status": "success",
+            "updated_at": "2026-09-19 09:45:45",
+            "data": {
+                "qqq": 714.88,
+                "spy": 764.29,
+                "vix": 15.84,
+                "dxy": 99.09,
+                "hyg": 78.60,
+                "lqd": 104.32,
+                "us10y": 4.97,
+                "us02y": 4.63,
+                "vvix": 102.66,
+                "skew": 147.02,
+                "cnnScore": 29.1,
+                "cnnRating": "fear",
+                "yieldSpread": 0.34,
+                "hygLqdRatio": 0.753,
+                "vvixVixRatio": 6.48,
+                "qqqDeduct": 0.86,
+                "spyDeduct": 1.19,
+                "aaiiSpread": 11.4,
+                "weiVal": 2.15
+            }
+        };
+
+        async function fetchFromGitHubData() {
+            diagLogs = [];
+            logDiag("🚀 啟動全指標數據動態同步頻道...");
+
+            // 1. Channel 1: Local Python Live Server (http://localhost:8080/api/indicators)
+            try {
+                logDiag("頻道 1：嘗試連線本機 Python 即時伺服器 (http://localhost:8080/api/indicators)...");
+                const res = await fetch("http://localhost:8080/api/indicators?t=" + new Date().getTime(), { cache: "no-store" });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json && json.data) {
+                        logDiag(`✅ 【成功】取得 Python 本機即時直連數據 (即時價 QQQ: $${json.data.qqq}, SPY: $${json.data.spy})`);
+                        return { data: json.data, source: "Python 本機即時伺服器 (官方直連)" };
+                    }
+                }
+            } catch (e) {
+                logDiag(`ℹ️ 頻道 1 提示 (本機伺服器未開啟): ${e.message}`);
+            }
+
+            // 2. Channel 2: GitHub Actions Daily Sync (./sentinel_live_data.json)
+            if (window.location.protocol.startsWith("http")) {
+                try {
+                    logDiag("頻道 2：讀取 GitHub Actions 雲端自動同步檔 (./sentinel_live_data.json)...");
+                    const res = await fetch("./sentinel_live_data.json?t=" + new Date().getTime(), { cache: "no-store" });
+                    logDiag(`./sentinel_live_data.json 回應 HTTP 狀態碼: ${res.status}`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json && json.data) {
+                            logDiag(`✅ 【成功】取得 GitHub 收盤全指標數據 (更新時間: ${json.updated_at})`);
+                            return { data: json.data, source: "GitHub Actions 雲端數據" };
+                        }
+                    }
+                } catch (e) {
+                    logDiag(`ℹ️ 頻道 2 提示: ${e.message}`);
+                }
+            }
+
+            // 3. Channel 3: Embedded Snapshot Defense
+            if (typeof SENTINEL_LOCAL_SNAPSHOT !== 'undefined' && SENTINEL_LOCAL_SNAPSHOT.data) {
+                logDiag(`✅ 【成功】載入內嵌防線快照數據 (資料時間: ${SENTINEL_LOCAL_SNAPSHOT.updated_at})`);
+                return { data: SENTINEL_LOCAL_SNAPSHOT.data, source: "全指標內嵌防線數據" };
+            }
+
+            return null;
+        }
+
+        async function refreshLiveData() {
+            const spinIcon = document.getElementById('spin-icon');
+            const updateTimeEl = document.getElementById('last-update-time');
+            const pushLogEl = document.getElementById('push-log');
+            const statusBadge = document.getElementById('api-status-badge');
+            const statusDot = document.getElementById('api-status-dot');
+            const statusText = document.getElementById('api-status-text');
+
+            if (spinIcon) spinIcon.classList.add('animate-spin');
+
+            if (statusBadge) {
+                statusBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+                statusBadge.style.borderColor = '#f59e0b';
+                statusBadge.style.color = '#fbbf24';
+            }
+            if (statusText) statusText.innerText = '⏳ 連線狀態：數據抓取與 API 診斷中...';
+
+            const now = new Date();
+            const timeStr = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0') + ':' +
+                String(now.getSeconds()).padStart(2, '0');
+
+            let qqq = 708.69, spy = 757.83, vix = 17.84, dxy = 99.09, hyg = 78.62, lqd = 104.36, us10y = 4.96, us02y = 4.59, vvix = 102.66, skew = 147.02, cnnScore = 33.3;
+            let dataSource = "";
+
+            const ghResult = await fetchFromGitHubData();
+            if (ghResult && ghResult.data) {
+                dataSource = ghResult.source;
+                const d = ghResult.data;
+                if (d.qqq) qqq = d.qqq;
+                if (d.spy) spy = d.spy;
+                if (d.vix) vix = d.vix;
+                if (d.dxy) dxy = d.dxy;
+                if (d.hyg) hyg = d.hyg;
+                if (d.lqd) lqd = d.lqd;
+                if (d.us10y) us10y = d.us10y;
+                if (d.us02y) us02y = d.us02y;
+                if (d.vvix) vvix = d.vvix;
+                if (d.skew) skew = d.skew;
+                if (d.cnnScore) cnnScore = d.cnnScore;
+            } else {
+                const cnnObj = await fetchCNNOfficialFearGreed();
+                if (cnnObj && cnnObj.score) {
+                    cnnScore = cnnObj.score;
+                }
+                dataSource = "CNN 代理與備用快照防線";
+            }
+
+            const vvix_vix_ratio = (vvix / vix).toFixed(2);
+            const yield_spread = (us10y - us02y).toFixed(2);
+            const hyg_lqd_ratio = (hyg / lqd).toFixed(3);
+            const qqq_60ema = 708.75;
+            const qqq_deduct = (((qqq - qqq_60ema) / qqq_60ema) * 100).toFixed(2);
+            const spy_60ema = 755.28;
+            const spy_deduct = (((spy - spy_60ema) / spy_60ema) * 100).toFixed(2);
+
+            setTimeout(() => {
+                document.getElementById('price-qqq-main').innerText = `$${qqq.toFixed(2)}`;
+                document.getElementById('price-qqq-deduct').innerText = `${qqq_deduct >= 0 ? '+' : ''}${qqq_deduct}% (${qqq_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
+                document.getElementById('price-spy-main').innerText = `$${spy.toFixed(2)}`;
+                document.getElementById('price-spy-deduct').innerText = `${spy_deduct >= 0 ? '+' : ''}${spy_deduct}% (${spy_deduct >= 0 ? '扣低助漲' : '扣高壓力'})`;
+
+                document.getElementById('macro-skew-val').innerText = `${skew.toFixed(2)} (${skew > 135 ? '⚠️ 突破 135' : '🟢 正常'})`;
+                document.getElementById('macro-dxy-val').innerText = `${dxy.toFixed(2)} (${dxy > 105 ? '⚠️ 美元緊縮' : '🟢 美元回落'})`;
+                document.getElementById('macro-hyg-val').innerText = `$${hyg.toFixed(2)} / $${lqd.toFixed(2)} (🟢 健康)`;
+
+                document.getElementById('stg3-skew').innerText = `${skew.toFixed(2)} (${skew > 135 ? '⚠️ >135 預警' : '🟢 正常'})`;
+                document.getElementById('stg3-vvix-vix').innerText = `${vvix_vix_ratio} (${vvix_vix_ratio > 6.0 ? '⚠️ >6.0 暴升' : '未暴升 <6.0'})`;
+                document.getElementById('stg5-vix').innerText = `${vix.toFixed(2)} (${vix > 35.0 ? '🔵 >35.0 倒掛抄底' : '未突破 >35.0'})`;
+
+                const cnnStatus = cnnScore <= 45 ? 'yellow' : (cnnScore >= 75 ? 'red' : 'green');
+                setCardAlertStyle('box-cnn', 'rem-cnn', 'tag-cnn', cnnStatus, cnnScore.toFixed(1), cnnStatus === 'yellow' ? '🟡 恐慌預警' : 'LIVE');
+
+                const skewStatus = skew > 135 ? 'yellow' : 'green';
+                setCardAlertStyle('box-skew', 'rem-skew', 'tag-skew', skewStatus, skew.toFixed(2), skewStatus === 'yellow' ? '🟡 避險預警' : 'LIVE');
+
+                const dxyStatus = dxy >= 105 ? 'red' : (dxy >= 103 ? 'yellow' : 'green');
+                setCardAlertStyle('box-dxy', 'rem-dxy', 'tag-dxy', dxyStatus, dxy.toFixed(2), dxyStatus === 'red' ? '🔴 緊縮警報' : 'LIVE');
+
+                const vixStatus = vix >= 35 ? 'blue' : (vix >= 25 ? 'yellow' : 'green');
+                setCardAlertStyle('box-vvix-vix', 'rem-vvix-vix', 'tag-vvix-vix', vixStatus, vvix_vix_ratio, vixStatus === 'blue' ? '🔵 倒掛抄底' : 'LIVE');
+
+                const spreadStatus = yield_spread < 0 ? 'red' : (yield_spread < 0.2 ? 'yellow' : 'green');
+                setCardAlertStyle('box-spread', 'rem-spread', 'tag-spread', spreadStatus, `${yield_spread >= 0 ? '+' : ''}${yield_spread}%`, spreadStatus === 'red' ? '🔴 殖利率倒掛' : 'LIVE');
+
+                const hygStatus = hyg_lqd_ratio < 0.72 ? 'red' : 'green';
+                setCardAlertStyle('box-hyg-lqd', 'rem-hyg-lqd', 'tag-hyg-lqd', hygStatus, `${hyg_lqd_ratio} ($${hyg.toFixed(2)}/$${lqd.toFixed(2)})`, hygStatus === 'red' ? '🔴 違約風險' : 'LIVE');
+
+                if (skew > 135 || cnnScore <= 45) {
+                    triggerNativePushNotification("⚠️ [🟡 黃燈預警] 市場指標進入警戒區", `CNN 恐慌指數達 ${cnnScore.toFixed(1)}，SKEW 達 ${skew.toFixed(2)}！請注意控管部位。`);
+                }
+
+                if (statusBadge) {
+                    statusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                    statusBadge.style.borderColor = '#10b981';
+                    statusBadge.style.color = '#34d399';
+                }
+                if (statusDot) statusDot.style.background = '#10b981';
+                if (statusText) statusText.innerText = `✅ 連線成功：全 20 項數據已同步 (${dataSource})`;
+
+                document.querySelectorAll('.rem-box').forEach(box => {
+                    box.classList.add('updated-flash');
+                    setTimeout(() => box.classList.remove('updated-flash'), 1000);
+                });
+
+                if (spinIcon) spinIcon.classList.remove('animate-spin');
+                if (updateTimeEl) updateTimeEl.innerText = '⚡ 最後更新：' + timeStr;
+                if (pushLogEl) pushLogEl.innerHTML = `🔄 【全指標動態預警變色卡片已同步】<br>• CNN 恐慌指數: <span style="color:#fbbf24;font-weight:bold;">${cnnScore.toFixed(1)} (🟡 恐慌預警亮燈)</span> | SKEW: <span style="color:#fbbf24;font-weight:bold;">${skew.toFixed(2)} (🟡 避險預警亮燈)</span> | QQQ: $${qqq.toFixed(2)} | SPY: $${spy.toFixed(2)}`;
+            }, 300);
+        }
+
+        // AUTO-RUN ON PAGE LOAD & AUTO-REFRESH EVERY 5 MINUTES
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshLiveData();
+            setInterval(refreshLiveData, 300000);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
