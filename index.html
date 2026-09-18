@@ -910,6 +910,31 @@
             }
         };
 
+        function escapeDiagText(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+        }
+
+        function reportApiDiagnostics(diagnostics) {
+            if (!diagnostics) return;
+            const providers = diagnostics.providers || {};
+            const tradingView = providers.tradingview;
+            const cnn = providers.cnn;
+            if (tradingView) {
+                const ok = tradingView.status === 'ok';
+                logDiag(`${ok ? '✅' : '❌'} TradingView：${tradingView.received || 0}/${tradingView.expected || 8} 個即時指標${tradingView.error ? `；${escapeDiagText(tradingView.error)}` : ''}`);
+            }
+            if (cnn) {
+                logDiag(`${cnn.status === 'ok' ? '✅' : '❌'} CNN Fear & Greed：${cnn.status === 'ok' ? '即時資料已取得' : `失敗；${escapeDiagText(cnn.error || '未回傳資料')}`}`);
+            }
+            const indicators = diagnostics.indicators || {};
+            Object.entries(indicators).forEach(([name, item]) => {
+                const state = item.live ? '✅ 即時' : '⚠️ 備援/靜態';
+                logDiag(`${state} ${name.toUpperCase()}：${item.value}（${escapeDiagText(item.source)}）`);
+            });
+        }
+
         async function fetchFromGitHubData() {
             diagLogs = [];
             logDiag("🚀 啟動全指標數據動態同步頻道...");
@@ -945,7 +970,8 @@
                         const json = await res.json();
                         if (json && json.status === "success" && json.data) {
                             logDiag(`Cloud live API succeeded (QQQ: $${json.data.qqq}, SPY: $${json.data.spy})`);
-                            return { data: json.data, source: "Cloud live API" };
+                            reportApiDiagnostics(json.diagnostics);
+                            return { data: json.data, diagnostics: json.diagnostics, source: "Cloud live API" };
                         }
                     }
                     logDiag(`Channel 2 notice: cloud API HTTP ${res.status}`);
