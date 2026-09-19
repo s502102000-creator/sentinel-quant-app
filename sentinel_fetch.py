@@ -267,12 +267,16 @@ def _cached(key, ttl, fn, *args, **kwargs):
 
 # ─── 全指標彙整 ───────────────────────────────────────────────────────────────
 
-def fetch_all(price_ttl=0, slow_ttl=0):
+def fetch_all(price_ttl=0, slow_ttl=0, weekly_ttl=None):
     """回傳 (data dict, diagnostics dict, live_count, total)。
 
-    price_ttl  報價類快取秒數（常駐伺服器建議 45）。
-    slow_ttl   日頻/週頻資料（60EMA、WEI、AAII）快取秒數（建議 1800）。
+    price_ttl   報價類快取秒數（常駐伺服器建議 45）。
+    slow_ttl    日頻資料（60EMA）快取秒數（建議 1800）。
+    weekly_ttl  週頻資料（WEI、AAII）快取秒數，預設 slow_ttl 的 12 倍（約 6 小時）。
+                AAII 每週只更新一次，且對頻繁請求會回機器人牆，不該常抓。
     """
+    if weekly_ttl is None:
+        weekly_ttl = slow_ttl * 12
     diag = {}
 
     def rec(key, value, live, source):
@@ -306,10 +310,10 @@ def fetch_all(price_ttl=0, slow_ttl=0):
     spy_60ema = rec("spy60ema", *_cached("ema:SPY", slow_ttl, fetch_ema, "SPY", 60, 756.04))
 
     print("\n📡 FRED Weekly Economic Index...")
-    wei = rec("weiVal", *_cached("wei", slow_ttl, fetch_wei))
+    wei = rec("weiVal", *_cached("wei", weekly_ttl, fetch_wei))
 
     print("\n📡 AAII Sentiment Spread...")
-    aaii = rec("aaiiSpread", *_cached("aaii", slow_ttl, fetch_aaii_spread))
+    aaii = rec("aaiiSpread", *_cached("aaii", weekly_ttl, fetch_aaii_spread))
 
     data = {
         "qqq": qqq, "spy": spy, "vix": vix, "dxy": dxy, "hyg": hyg, "lqd": lqd,

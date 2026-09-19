@@ -45,8 +45,20 @@ if os.path.exists('index.html'):
     content = re.sub(r'id="rem-cnn">[^<]+<', f'id="rem-cnn">{cnn_score:.1f}<', content)
     content = re.sub(r'id="macro-cnn-alert">[^<]+<',
                      f'id="macro-cnn-alert">{cnn_score:.1f} ({cnn_rating.upper()})<', content)
-    content = re.sub(r'"cnnScore":\s*[0-9.]+', f'"cnnScore": {cnn_score:.1f}', content)
-    content = re.sub(r'"updated_at":\s*"[^"]+"', f'"updated_at": "{now_str}"', content)
+    # 整塊改寫內嵌快照（離線 / 直接雙擊 index.html 走的最後防線）。
+    # 舊版只用 regex 改 "updated_at" 與 "cnnScore"，導致時間看起來是新的、
+    # 但 us02y / vvix / skew / aaii / wei 全是舊錯值。
+    snapshot_js = json.dumps(
+        {"status": "success", "updated_at": now_str, "data": data},
+        indent=4, ensure_ascii=False)
+    snapshot_js = '\n'.join(
+        ('        ' + ln) if i else ln for i, ln in enumerate(snapshot_js.split('\n')))
+    content, n = re.subn(
+        r'const SENTINEL_LOCAL_SNAPSHOT = \{.*?\n        \};',
+        f'const SENTINEL_LOCAL_SNAPSHOT = {snapshot_js};',
+        content, count=1, flags=re.DOTALL)
+    if n != 1:
+        print("⚠️  未找到 SENTINEL_LOCAL_SNAPSHOT 區塊，內嵌快照未更新")
 
     with open('index.html', 'w', encoding='utf-8') as f:
         f.write(content)
