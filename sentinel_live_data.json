@@ -1,7 +1,7 @@
 {
     "status": "success",
     "source": "Yahoo v8 + CNN curl_cffi + FRED (9/10 live)",
-    "updated_at": "2026-09-19 00:26:42",
+    "updated_at": "2026-09-19 00:38:52",
     "data": {
         "qqq": 721.45,
         "spy": 761.69,
