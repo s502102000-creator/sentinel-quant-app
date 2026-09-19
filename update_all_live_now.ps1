@@ -47,10 +47,33 @@ $lqd = (Get-YahooPrice "LQD")
 if (-not $lqd) { $lqd = 104.30 }
 $us10y = (Get-YahooPrice "^TNX")
 if (-not $us10y) { $us10y = 4.96 }
-$us02y = 4.63
+$us02y_val = (Get-YahooPrice "^IRX")
+if (-not $us02y_val) { $us02y_val = 4.63 }
+# ^IRX is in % * 100 (e.g. 3.978 = 3.978%), no conversion needed
+$us02y = [math]::Round($us02y_val, 3)
 
-$vvix = 102.66
-$skew = 147.02
+$vvix = (Get-YahooPrice "^VVIX")
+if (-not $vvix) { $vvix = 102.66 }
+
+$skew = (Get-YahooPrice "^SKEW")
+if (-not $skew) { $skew = 147.02 }
+
+# FRED WEI
+$wei = 2.15
+try {
+    $weiRaw = curl.exe -k --ssl-no-revoke -s "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WEI"
+    if ($weiRaw) {
+        $weiLines = $weiRaw -split "`n" | Where-Object { $_ -match "^\d{4}-\d{2}-\d{2}," }
+        if ($weiLines.Count -gt 0) {
+            $lastLine = $weiLines[-1].Trim()
+            $weiParts = $lastLine -split ","
+            if ($weiParts.Count -eq 2 -and $weiParts[1] -ne ".") {
+                $wei = [math]::Round([double]$weiParts[1], 2)
+            }
+        }
+    }
+} catch { Write-Host "WEI Fetch Notice: $_" }
+
 $yieldSpread = [math]::Round($us10y - $us02y, 2)
 $hygLqdRatio = [math]::Round($hyg / $lqd, 3)
 $vvixVixRatio = [math]::Round($vvix / $vix, 2)
@@ -71,7 +94,7 @@ Write-Host "=========================================="
 # 1. Update sentinel_live_data.json
 $jsonObj = @{
     status = "success"
-    source = "CNN Official (31.1) + Yahoo v8 Engine"
+    source = "CNN curl_cffi + Yahoo v8 + FRED WEI Engine"
     updated_at = $nowStr
     data = @{
         qqq = $qqq
@@ -92,7 +115,7 @@ $jsonObj = @{
         qqqDeduct = $qqqDeduct
         spyDeduct = $spyDeduct
         aaiiSpread = 11.4
-        weiVal = 2.15
+        weiVal = $wei
     }
 }
 $jsonObj | ConvertTo-Json -Depth 5 | Out-File -FilePath "sentinel_live_data.json" -Encoding utf8

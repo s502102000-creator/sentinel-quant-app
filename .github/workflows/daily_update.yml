@@ -1,13 +1,17 @@
-name: Sentinel Market Data Health Check
+name: Sentinel Automated Market Close Scanner & GitHub Pages Auto-Deploy
 
 on:
+  push:
+    branches:
+      - main
+      - master
   schedule:
     # Runs automatically at 21:00 UTC (US Market Close / 5:00 AM Taiwan Time) Monday through Friday
     - cron: '0 21 * * 1-5'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   daily-scan-and-update:
@@ -24,11 +28,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests urllib3 curl_cffi
+          pip install requests urllib3 curl_cffi xlrd openpyxl
 
       - name: Run Market Close Scanner & Alert Engine
         run: python update_data.py
 
-      - name: Report result without writing to main
+      - name: Commit & Push Updated Data to Repository
         run: |
-          echo "Live market data is served by Netlify; this workflow does not push commits to main."
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add index.html sentinel_live_data.json
+          git commit -m "auto: 🤖 每日美股收盤全指標數據自動更新 [$(date +'%Y-%m-%d %H:%M:%S')]" || exit 0
+          git push
