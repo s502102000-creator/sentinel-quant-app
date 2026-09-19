@@ -1,26 +1,26 @@
-﻿{
-    "status":  "success",
-    "data":  {
-                 "cnnRating":  "fear",
-                 "skew":  148.1,
-                 "vix":  14.81,
-                 "vvixVixRatio":  5.90,
-                 "yieldSpread":  1.02,
-                 "vvix":  87.38,
-                 "spy":  761.69,
-                 "cnnScore":  29.1,
-                 "spyDeduct":  0.85,
-                 "qqq":  721.45,
-                 "hyg":  78.53,
-                 "hygLqdRatio":  0.750,
-                 "aaiiSpread":  11.4,
-                 "lqd":  104.7,
-                 "us02y":  3.98,
-                 "qqqDeduct":  1.79,
-                 "us10y":  5.00,
-                 "dxy":  100.22,
-                 "weiVal":  3.07
-             },
-    "source":  "CNN curl_cffi + Yahoo v8 + FRED WEI Engine",
-    "updated_at":  "2026-09-19 12:19:12"
+{
+    "status": "success",
+    "source": "Yahoo v8 + CNN curl_cffi + FRED (9/10 live)",
+    "updated_at": "2026-09-19 00:26:42",
+    "data": {
+        "qqq": 721.45,
+        "spy": 761.69,
+        "vix": 14.81,
+        "dxy": 100.22,
+        "hyg": 78.53,
+        "lqd": 104.7,
+        "us10y": 5.0,
+        "us02y": 3.98,
+        "vvix": 87.38,
+        "skew": 148.1,
+        "cnnScore": 29.1,
+        "cnnRating": "fear",
+        "yieldSpread": 1.02,
+        "hygLqdRatio": 0.75,
+        "vvixVixRatio": 5.9,
+        "qqqDeduct": 1.79,
+        "spyDeduct": 0.85,
+        "aaiiSpread": -1.4,
+        "weiVal": 2.15
+    }
 }
