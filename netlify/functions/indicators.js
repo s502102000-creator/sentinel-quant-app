@@ -1,6 +1,9 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 
 // ─── 🎭 Browser Impersonation Profiles ───────────────────────────────────────
 // Rotate between real Chrome versions on different OSes to avoid fingerprinting
@@ -209,7 +212,36 @@ async function fetchAllPrices() {
 }
 
 // ─── 4. CNN Fear & Greed ──────────────────────────────────────────────────────
+async function fetchCNNWithCurl() {
+    const profile = pickProfile();
+    const { stdout } = await execFileAsync('curl', [
+        '--silent', '--show-error', '--location', '--compressed', '--http1.1', '--max-time', '10',
+        '--user-agent', profile['User-Agent'],
+        '--header', 'Accept: application/json, text/plain, */*',
+        '--header', 'Referer: https://www.cnn.com/markets/fear-and-greed',
+        '--header', 'Origin: https://www.cnn.com',
+        'https://production.dataviz.cnn.io/index/fearandgreed/graphdata'
+    ], { timeout: 12000, maxBuffer: 1024 * 1024 });
+    const data = JSON.parse(stdout);
+    if (!data.fear_and_greed || !Number.isFinite(data.fear_and_greed.score)) {
+        throw new Error('CNN curl response did not contain a valid score');
+    }
+    return {
+        score: Math.round(data.fear_and_greed.score * 10) / 10,
+        rating: data.fear_and_greed.rating,
+        live: true,
+        source: 'CNN via curl'
+    };
+}
+
 async function fetchCNN() {
+    const errors = [];
+    try {
+        return await fetchCNNWithCurl();
+    } catch (e) {
+        errors.push(`curl: ${e.message}`);
+        console.error('CNN curl:', e.message);
+    }
     try {
         const hdrs = browserHeaders(
             'https://www.cnn.com/markets/fear-and-greed',
@@ -220,11 +252,19 @@ async function fetchCNN() {
         if (res.statusCode === 200) {
             const d = JSON.parse(res.body);
             if (d.fear_and_greed && d.fear_and_greed.score) {
-                return { score: Math.round(d.fear_and_greed.score * 10) / 10, rating: d.fear_and_greed.rating, live: true };
+                return {
+                    score: Math.round(d.fear_and_greed.score * 10) / 10,
+                    rating: d.fear_and_greed.rating,
+                    live: true,
+                    source: 'CNN via Node HTTPS'
+                };
             }
         }
-    } catch (e) { console.error('CNN:', e.message); }
-    return { score: 31.1, rating: 'fear', live: false };
+    } catch (e) {
+        errors.push(`node: ${e.message}`);
+        console.error('CNN Node HTTPS:', e.message);
+    }
+    return { score: 31.1, rating: 'fear', live: false, source: 'fallback', error: errors.join(' | ') };
 }
 
 // ─── 5. FRED WEI → snapshot fallback ─────────────────────────────────────────
@@ -321,7 +361,7 @@ exports.handler = async function(event, context) {
                 diagnostics: {
                     indicators: {
                         ...prices,
-                        cnnScore: { value: cnnR.score, source: cnnR.live ? 'CNN Fear & Greed' : 'fallback', live: cnnR.live },
+                        cnnScore: { value: cnnR.score, source: cnnR.source, live: cnnR.live, error: cnnR.error || null },
                         aaiiSpread: aaiiR,
                         weiVal: weiR
                     }
