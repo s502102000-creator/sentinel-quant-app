@@ -1,2 +1,4 @@
 *.metadata.json
 cnn_dump.json
+__pycache__/
+tmp_aaii.xls

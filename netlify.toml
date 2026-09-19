@@ -1,6 +1,12 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+  # 資料類 commit（GitHub Action 每天自動 push 的 "auto:" 開頭）不重新部署。
+  # 每次 production deploy 要 15 點，一天 3 次 = 月耗約 990 點，會直接爆掉
+  # 免費方案的 300 點。雲端函式本來就是每次請求即時抓取，不依賴 commit 進
+  # 去的快照（快照只當備援），所以跳過這些 build 不影響線上數值。
+  # exit 0 = 跳過 build、exit 1 = 照建；grep -q 找到 "auto:" 時正好回 0。
+  ignore = "git log -1 --pretty=%s $COMMIT_REF | grep -q '^auto:'"
 
 [[redirects]]
   from = "/api/indicators"

@@ -1,4 +1,5 @@
 const https = require('https');
+const zlib = require('zlib');
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
@@ -65,7 +66,21 @@ function readSnapshot() {
     return null;
 }
 
-// ─── HTTP request helper (handles gzip via Accept-Encoding header) ─────────────
+// ─── HTTP request helper ──────────────────────────────────────────────────────
+// browserHeaders() 會送 Accept-Encoding: gzip, deflate, br，所以這裡必須真的解壓縮。
+// 少了這段，TradingView / Yahoo / FRED 回來的是壓縮位元組，JSON.parse 全部炸掉。
+function decodeBody(res, buf) {
+    const enc = (res.headers['content-encoding'] || '').toLowerCase();
+    try {
+        if (enc === 'gzip') return zlib.gunzipSync(buf).toString('utf8');
+        if (enc === 'deflate') return zlib.inflateSync(buf).toString('utf8');
+        if (enc === 'br') return zlib.brotliDecompressSync(buf).toString('utf8');
+    } catch (e) {
+        console.error(`decode ${enc}:`, e.message);
+    }
+    return buf.toString('utf8');
+}
+
 function httpRequest(url, { method = 'GET', headers = {}, body = null, timeout = 9000 } = {}) {
     return new Promise((resolve, reject) => {
         const u = new URL(url);
@@ -92,7 +107,7 @@ function httpRequest(url, { method = 'GET', headers = {}, body = null, timeout =
             const chunks = [];
             res.on('data', c => chunks.push(c));
             res.on('end', () => {
-                resolve({ statusCode: res.statusCode, body: Buffer.concat(chunks).toString('utf8') });
+                resolve({ statusCode: res.statusCode, body: decodeBody(res, Buffer.concat(chunks)) });
             });
         });
         req.on('error', reject);
@@ -161,17 +176,21 @@ async function fetchTradingView() {
 }
 
 // ─── 2. Yahoo Finance v8 (Per-symbol fallback) ────────────────────────────────
+// Yahoo 對完整的瀏覽器擬真頭（Sec-Fetch + sec-ch-ua + Referer/Origin）會回
+// 429 Too Many Requests，極簡頭反而穩定回 200，所以這裡刻意不用 browserHeaders()。
+const YAHOO_HEADERS = { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' };
+// 注意：Yahoo 沒有 2 年期代碼。^IRX 是 13 週國庫券，當成 2Y 會讓 10Y-2Y
+// 殖利率差整段算錯，因此 us02y 不列在這裡，改由 FRED DGS2 備援。
 const YAHOO_SYMBOLS = {
     qqq: 'QQQ', spy: 'SPY', vix: '^VIX', dxy: 'DX-Y.NYB',
-    hyg: 'HYG', lqd: 'LQD', us10y: '^TNX', us02y: '^IRX',
+    hyg: 'HYG', lqd: 'LQD', us10y: '^TNX',
     vvix: '^VVIX', skew: '^SKEW'
 };
 
 async function fetchYahooSingle(sym) {
     try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
-        const hdrs = browserHeaders('https://finance.yahoo.com/', 'https://finance.yahoo.com');
-        const res = await httpRequest(url, { headers: hdrs });
+        const res = await httpRequest(url, { headers: YAHOO_HEADERS });
         if (res.statusCode === 200) {
             const d = JSON.parse(res.body);
             const price = d.chart.result[0].meta.regularMarketPrice;
@@ -195,13 +214,20 @@ async function fetchAllPrices() {
     const results = {};
 
     await Promise.all(Object.keys(TV_SYMBOLS).map(async key => {
-        const tvVal = tvData && tvData[TV_SYMBOLS[key]];
-        if (tvVal !== undefined && isFinite(tvVal)) {
+        const tvVal = tvData ? tvData[TV_SYMBOLS[key]] : undefined;
+        if (typeof tvVal === 'number' && isFinite(tvVal)) {
             results[key] = { value: tvVal, source: 'TradingView Scanner', live: true };
         } else {
-            const yahooVal = await fetchYahooSingle(YAHOO_SYMBOLS[key]);
+            const yahooVal = YAHOO_SYMBOLS[key]
+                ? await fetchYahooSingle(YAHOO_SYMBOLS[key])
+                : null;
             if (yahooVal !== null) {
                 results[key] = { value: yahooVal, source: 'Yahoo Finance v8', live: true };
+            } else if (key === 'us02y') {
+                const fred = await fetchFredLatest('DGS2');
+                results[key] = fred
+                    ? { value: fred.value, source: `FRED DGS2 (${fred.date})`, live: true }
+                    : { value: FALLBACKS[key], source: 'fallback', live: false };
             } else {
                 results[key] = { value: FALLBACKS[key], source: 'fallback', live: false };
             }
@@ -267,10 +293,34 @@ async function fetchCNN() {
     return { score: 31.1, rating: 'fear', live: false, source: 'fallback', error: errors.join(' | ') };
 }
 
-// ─── 5. FRED WEI → snapshot fallback ─────────────────────────────────────────
+// ─── 5. FRED CSV ─────────────────────────────────────────────────────────────
+// FRED 會 tarpit 偽造的瀏覽器 UA（裸請求 0.6 秒回 200，帶 Chrome UA 逾時），
+// 所以這裡刻意不使用 browserHeaders()。
+// 實測：'curl/8.5.0' 回 200；自訂 UA（sentinel-quant/1.0）與完全不送 UA 都會被
+// tarpit 到逾時，偽造的 Chrome UA 亦然。
+const FRED_HEADERS = { 'User-Agent': 'curl/8.5.0', 'Accept': '*/*' };
+
+async function fetchFredLatest(seriesId) {
+    try {
+        const res = await httpRequest(
+            `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`,
+            { headers: FRED_HEADERS });
+        if (res.statusCode === 200) {
+            const rows = res.body.trim().split(/\r?\n/)
+                .map(l => l.match(/^(\d{4}-\d{2}-\d{2}),(-?\d+(?:\.\d+)?)$/))
+                .filter(Boolean);
+            if (rows.length) {
+                const val = parseFloat(rows[rows.length - 1][2]);
+                if (isFinite(val)) return { value: Math.round(val * 100) / 100, date: rows[rows.length - 1][1] };
+            }
+        }
+    } catch (e) { console.error(`FRED ${seriesId}:`, e.message); }
+    return null;
+}
+
 async function fetchWEI(snapshot) {
     try {
-        const hdrs = browserHeaders('https://fred.stlouisfed.org/', 'https://fred.stlouisfed.org');
+        const hdrs = FRED_HEADERS;
         const res = await httpRequest('https://fred.stlouisfed.org/graph/fredgraph.csv?id=WEI', { headers: hdrs });
         if (res.statusCode === 200) {
             const lines = res.body.trim().split(/\r?\n/).filter(l => /^\d{4}-\d{2}-\d{2},-?[\d.]/.test(l));
@@ -288,6 +338,26 @@ async function fetchWEI(snapshot) {
     return { value: 2.15, source: 'fallback', live: false };
 }
 
+// ─── 5b. 60日 EMA 扣抵價（由 Yahoo 日線實算，取代寫死值） ───────────────────
+async function fetch60EMA(sym, fallback) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y`;
+        const res = await httpRequest(url, { headers: YAHOO_HEADERS });
+        if (res.statusCode === 200) {
+            const closes = (JSON.parse(res.body).chart.result[0].indicators.quote[0].close || [])
+                .filter(c => c !== null && isFinite(c));
+            const period = 60;
+            if (closes.length >= period) {
+                const k = 2 / (period + 1);
+                let ema = closes.slice(0, period).reduce((a, c) => a + c, 0) / period;
+                for (const c of closes.slice(period)) ema = c * k + ema * (1 - k);
+                return { value: Math.round(ema * 100) / 100, source: `Yahoo ${period}EMA (live)`, live: true };
+            }
+        }
+    } catch (e) { console.error(`EMA [${sym}]:`, e.message); }
+    return { value: fallback, source: 'fallback', live: false };
+}
+
 // ─── 6. AAII Sentiment → snapshot fallback ────────────────────────────────────
 async function fetchAAII(snapshot) {
     try {
@@ -295,9 +365,10 @@ async function fetchAAII(snapshot) {
         const res = await httpRequest('https://www.aaii.com/sentimentsurvey', { headers: hdrs });
         if (res.statusCode === 200) {
             const text = res.body.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-            const m = text.match(/Bull[^\d+\-]*Bear[^\d+\-]*Spread[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)/i);
+            const m = text.match(/Spread:?\s*([+\-\u2212]?\d+(?:\.\d+)?)\s*pp/i)
+                   || text.match(/Bull[^\d+\-]*Bear[^\d+\-]*Spread[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)/i);
             if (m) {
-                const val = parseFloat(m[1]);
+                const val = parseFloat(m[1].replace('\u2212', '-'));
                 if (isFinite(val)) return { value: val, source: 'AAII weekly survey (live)', live: true };
             }
         }
@@ -325,11 +396,13 @@ exports.handler = async function(event, context) {
     try {
         const snapshot = readSnapshot();
 
-        const [prices, cnnR, weiR, aaiiR] = await Promise.all([
+        const [prices, cnnR, weiR, aaiiR, qqqEmaR, spyEmaR] = await Promise.all([
             fetchAllPrices(),
             fetchCNN(),
             fetchWEI(snapshot),
-            fetchAAII(snapshot)
+            fetchAAII(snapshot),
+            fetch60EMA('QQQ', 708.95),
+            fetch60EMA('SPY', 756.04)
         ]);
 
         const get = k => prices[k].value;
@@ -340,11 +413,11 @@ exports.handler = async function(event, context) {
         const yieldSpread  = Math.round((us10y - us02y) * 100) / 100;
         const hygLqdRatio  = lqd > 0 ? Math.round((hyg / lqd) * 1000) / 1000 : 0.753;
         const vvixVixRatio = vix > 0 ? Math.round((vvix / vix) * 100) / 100 : 6.0;
-        const qqq_60ema = 708.75, spy_60ema = 755.28;
+        const qqq_60ema = qqqEmaR.value, spy_60ema = spyEmaR.value;
         const qqqDeduct = Math.round(((qqq - qqq_60ema) / qqq_60ema) * 10000) / 100;
         const spyDeduct = Math.round(((spy - spy_60ema) / spy_60ema) * 10000) / 100;
 
-        const allResults = [...Object.values(prices), { live: cnnR.live }, weiR, aaiiR];
+        const allResults = [...Object.values(prices), { live: cnnR.live }, weiR, aaiiR, qqqEmaR, spyEmaR];
         const liveCount = allResults.filter(r => r.live).length;
         const tvCount = Object.values(prices).filter(r => r.source === 'TradingView Scanner').length;
         const yhCount = Object.values(prices).filter(r => r.source === 'Yahoo Finance v8').length;
@@ -363,13 +436,16 @@ exports.handler = async function(event, context) {
                         ...prices,
                         cnnScore: { value: cnnR.score, source: cnnR.source, live: cnnR.live, error: cnnR.error || null },
                         aaiiSpread: aaiiR,
-                        weiVal: weiR
+                        weiVal: weiR,
+                        qqq60ema: qqqEmaR,
+                        spy60ema: spyEmaR
                     }
                 },
                 data: {
                     qqq, spy, vix, dxy, hyg, lqd, us10y, us02y, vvix, skew,
                     cnnScore: cnnR.score, cnnRating: cnnR.rating,
                     yieldSpread, hygLqdRatio, vvixVixRatio,
+                    qqq60ema: qqq_60ema, spy60ema: spy_60ema,
                     qqqDeduct, spyDeduct,
                     aaiiSpread: aaiiR.value,
                     weiVal: weiR.value

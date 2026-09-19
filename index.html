@@ -400,7 +400,7 @@
                     <span id="api-status-text">⏳ 後端 API 連線中...</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-sub); font-weight: 500;">
-                    <span id="last-update-time">⚡ 最後更新：2026-09-19 00:53:16 (CNN 29.1 恐慌指數 · 9/10 即時)</span>
+                    <span id="last-update-time">⚡ 最後更新：2026-09-19 13:18:45 (CNN 29.1 恐慌指數 · 15/15 即時)</span>
                 </div>
             </div>
         </div>
@@ -886,7 +886,7 @@
 
         const SENTINEL_LOCAL_SNAPSHOT = {
             "status": "success",
-            "updated_at": "2026-09-19 00:53:16",
+            "updated_at": "2026-09-19 13:18:45",
             "data": {
                 "qqq": 714.88,
                 "spy": 764.29,
@@ -952,7 +952,8 @@
                     const json = await res.json();
                     if (json && json.data) {
                         logDiag(`✅ 【成功】取得 Python 本機即時直連數據 (即時價 QQQ: $${json.data.qqq}, SPY: $${json.data.spy})`);
-                        return { data: json.data, source: "Python 本機即時伺服器 (官方直連)" };
+                        reportApiDiagnostics(json.diagnostics);
+                        return { data: json.data, diagnostics: json.diagnostics, source: "Python 本機即時伺服器 (官方直連)" };
                     }
                 }
             } catch (e) {
@@ -995,7 +996,8 @@
                         const json = await res.json();
                         if (json && json.data) {
                             logDiag(`✅ 【成功】取得 GitHub 收盤全指標數據 (更新時間: ${json.updated_at})`);
-                            return { data: json.data, source: "GitHub Actions 排程快照" };
+                            reportApiDiagnostics(json.diagnostics);
+                            return { data: json.data, diagnostics: json.diagnostics, source: "GitHub Actions 排程快照" };
                         }
                     }
                 } catch (e) {
@@ -1038,6 +1040,7 @@
                 String(now.getSeconds()).padStart(2, '0');
 
             let qqq = 708.69, spy = 757.83, vix = 17.84, dxy = 99.09, hyg = 78.62, lqd = 104.36, us10y = 4.96, us02y = 4.59, vvix = 102.66, skew = 147.02, cnnScore = 33.3, aaiiSpread = 11.4, weiVal = 2.15;
+            let qqq60ema = 708.95, spy60ema = 756.04;
             let dataSource = "";
 
             const ghResult = await fetchFromGitHubData();
@@ -1057,6 +1060,8 @@
                 if (d.cnnScore) cnnScore = d.cnnScore;
                 if (Number.isFinite(d.aaiiSpread)) aaiiSpread = d.aaiiSpread;
                 if (Number.isFinite(d.weiVal)) weiVal = d.weiVal;
+                if (d.qqq60ema) qqq60ema = d.qqq60ema;
+                if (d.spy60ema) spy60ema = d.spy60ema;
             } else {
                 const cnnObj = await fetchCNNOfficialFearGreed();
                 if (cnnObj && cnnObj.score) {
@@ -1068,9 +1073,9 @@
             const vvix_vix_ratio = (vvix / vix).toFixed(2);
             const yield_spread = (us10y - us02y).toFixed(2);
             const hyg_lqd_ratio = (hyg / lqd).toFixed(3);
-            const qqq_60ema = 708.75;
+            const qqq_60ema = qqq60ema;
             const qqq_deduct = (((qqq - qqq_60ema) / qqq_60ema) * 100).toFixed(2);
-            const spy_60ema = 755.28;
+            const spy_60ema = spy60ema;
             const spy_deduct = (((spy - spy_60ema) / spy_60ema) * 100).toFixed(2);
 
             setTimeout(() => {

@@ -28,7 +28,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests urllib3 curl_cffi xlrd openpyxl
+          # xlrd / openpyxl 已不需要：AAII 改抓官方調查頁，XLS 來源已回 403
+          pip install requests urllib3 curl_cffi
 
       - name: Run Market Close Scanner & Alert Engine
         run: python update_data.py
