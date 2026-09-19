@@ -3,6 +3,7 @@
 每個 fetch_* 回傳 (value, live, source)；抓不到才退回 fallback 並標記 live=False。
 """
 import json
+import os
 import subprocess
 import time
 import urllib.parse
@@ -11,6 +12,29 @@ import re
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+
+# ─── 上次成功值（最後防線） ───────────────────────────────────────────────────
+
+SNAPSHOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'sentinel_live_data.json')
+
+
+def last_known(key):
+    """讀 sentinel_live_data.json 裡上次成功抓到的值。
+
+    比寫死在程式裡的常數好：AAII / WEI 被上游擋住時，退回的是最近一次真實
+    數值而不是幾週前寫進原始碼的數字。仍標記為非即時，診斷面板看得到。
+    """
+    try:
+        with open(SNAPSHOT_PATH, encoding='utf-8') as f:
+            snap = json.load(f)
+        diag = snap.get('diagnostics', {}).get('indicators', {}).get(key, {})
+        if diag.get('live') and isinstance(diag.get('value'), (int, float)):
+            return diag['value'], snap.get('updated_at', '')
+    except Exception:
+        pass
+    return None, ''
 
 
 # ─── HTTP Helpers ─────────────────────────────────────────────────────────────
@@ -139,6 +163,42 @@ def fetch_tradingview(tickers):
     return {}
 
 
+# ─── 批次報價：TradingView 一發 → Yahoo 補缺 ──────────────────────────────────
+# 舊版逐檔打 Yahoo，一輪要 9-11 個請求；開盤期間前端每 5 分鐘刷一次，
+# Yahoo 每小時被打 130 次以上，實測會回 429 Too Many Requests。
+# 改為一個 POST 批次取 8 檔，只有 TradingView 沒有的 VVIX/SKEW 走 Yahoo。
+TV_SYMBOLS = {
+    'qqq': 'NASDAQ:QQQ', 'spy': 'AMEX:SPY', 'vix': 'CBOE:VIX', 'dxy': 'TVC:DXY',
+    'hyg': 'AMEX:HYG', 'lqd': 'AMEX:LQD', 'us10y': 'TVC:US10Y', 'us02y': 'TVC:US02Y',
+}
+# TradingView 批次失敗時的逐檔備援；us02y 無 Yahoo 代碼（^IRX 是 13 週國庫券）
+YAHOO_SYMBOLS = {
+    'qqq': 'QQQ', 'spy': 'SPY', 'vix': '^VIX', 'dxy': 'DX-Y.NYB',
+    'hyg': 'HYG', 'lqd': 'LQD', 'us10y': '^TNX', 'vvix': '^VVIX', 'skew': '^SKEW',
+}
+
+
+def fetch_prices(fallbacks):
+    """回傳 {key: (value, live, source)}。fallbacks 決定要抓哪些 key。"""
+    tv = fetch_tradingview([TV_SYMBOLS[k] for k in fallbacks if k in TV_SYMBOLS])
+    out = {}
+    for key, fb in fallbacks.items():
+        tv_val = tv.get(TV_SYMBOLS.get(key, ''))
+        if isinstance(tv_val, (int, float)):
+            out[key] = (round(float(tv_val), 2), True, 'TradingView Scanner')
+            continue
+        if key in YAHOO_SYMBOLS:
+            out[key] = fetch_yahoo_price(YAHOO_SYMBOLS[key], fb)
+            continue
+        if key == 'us02y':
+            # TradingView 掛了才走這裡：FRED 日頻官方值（落後約一日）
+            val, live, src = fetch_fred_series('DGS2', fb, label='US02Y')
+            out[key] = (val, live, src)
+            continue
+        out[key] = (fb, False, 'fallback')
+    return out
+
+
 # ─── FRED CSV ─────────────────────────────────────────────────────────────────
 
 def fetch_fred_series(series_id, fallback, label=None):
@@ -181,7 +241,14 @@ def fetch_us02y(fallback=4.76):
 
 
 def fetch_wei(fallback=3.07):
-    return fetch_fred_series("WEI", fallback, label="WEI")
+    val, live, src = fetch_fred_series("WEI", None, label="WEI")
+    if live:
+        return val, live, src
+    cached, when = last_known("weiVal")
+    if cached is not None:
+        print(f"  [WEI] 上次成功值 -> {cached} ({when})")
+        return cached, False, f"上次成功值 ({when})"
+    return fallback, False, "fallback"
 
 
 # ─── CNN Fear & Greed ─────────────────────────────────────────────────────────
@@ -244,6 +311,10 @@ def fetch_aaii_spread(fallback=-24.5):
                   f"({', '.join(detail)}{', ' if detail else ''}{wk.group(1) if wk else 'n/a'})")
             return spread, True, f"AAII survey ({wk.group(1) if wk else 'live'})"
         print("  [AAII] spread pattern not found on page")
+    cached, when = last_known("aaiiSpread")
+    if cached is not None:
+        print(f"  [AAII] 上次成功值 -> {cached} ({when})")
+        return cached, False, f"上次成功值 ({when})"
     print(f"  [AAII] fallback -> {fallback}")
     return fallback, False, "fallback"
 
@@ -283,27 +354,27 @@ def fetch_all(price_ttl=0, slow_ttl=0, weekly_ttl=None):
         diag[key] = {"value": value, "live": live, "source": source}
         return value
 
-    def price(key, symbol, fallback):
-        return rec(key, *_cached(f"px:{symbol}", price_ttl,
-                                 fetch_yahoo_price, symbol, fallback))
-
     print("\n📡 CNN Fear & Greed...")
     cnn_score, cnn_rating, cnn_live, cnn_src = _cached("cnn", price_ttl, fetch_cnn)
     rec("cnnScore", cnn_score, cnn_live, cnn_src)
 
-    print("\n📡 Yahoo Finance v8 報價...")
-    qqq   = price("qqq",   "QQQ",      721.45)
-    spy   = price("spy",   "SPY",      761.69)
-    vix   = price("vix",   "^VIX",      14.81)
-    dxy   = price("dxy",   "DX-Y.NYB", 100.22)
-    hyg   = price("hyg",   "HYG",       78.53)
-    lqd   = price("lqd",   "LQD",      104.70)
-    us10y = price("us10y", "^TNX",       5.00)
-    vvix  = price("vvix",  "^VVIX",     87.38)
-    skew  = price("skew",  "^SKEW",    148.10)
-
-    print("\n📡 2年期公債殖利率 (TradingView → FRED DGS2)...")
-    us02y = rec("us02y", *_cached("us02y", price_ttl, fetch_us02y))
+    print("\n📡 批次報價 (TradingView 一發 → Yahoo 補缺)...")
+    PRICE_FALLBACKS = {
+        "qqq": 721.45, "spy": 761.69, "vix": 14.81, "dxy": 100.22,
+        "hyg": 78.53, "lqd": 104.70, "us10y": 5.00, "us02y": 4.76,
+        "vvix": 87.38, "skew": 148.10,
+    }
+    prices = _cached("prices", price_ttl, fetch_prices, PRICE_FALLBACKS)
+    qqq   = rec("qqq",   *prices["qqq"])
+    spy   = rec("spy",   *prices["spy"])
+    vix   = rec("vix",   *prices["vix"])
+    dxy   = rec("dxy",   *prices["dxy"])
+    hyg   = rec("hyg",   *prices["hyg"])
+    lqd   = rec("lqd",   *prices["lqd"])
+    us10y = rec("us10y", *prices["us10y"])
+    us02y = rec("us02y", *prices["us02y"])
+    vvix  = rec("vvix",  *prices["vvix"])
+    skew  = rec("skew",  *prices["skew"])
 
     print("\n📡 60日 EMA 扣抵價實算...")
     qqq_60ema = rec("qqq60ema", *_cached("ema:QQQ", slow_ttl, fetch_ema, "QQQ", 60, 708.95))

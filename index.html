@@ -1141,10 +1141,40 @@
             }, 300);
         }
 
-        // AUTO-RUN ON PAGE LOAD & AUTO-REFRESH EVERY 5 MINUTES
+        // ─── 依美股交易時段調整輪詢頻率 ─────────────────────────────────
+        // 原本固定每 5 分鐘刷一次、連週末與深夜都照打，收盤後價格根本不動，
+        // 這些請求全是白打，還會把上游打到 429（Yahoo）或機器人牆（AAII）。
+        const POLL_OPEN_MS   = 300000;    // 開盤中：5 分鐘
+        const POLL_CLOSED_MS = 1800000;   // 收盤／週末：30 分鐘
+
+        function isUSMarketOpen(now = new Date()) {
+            try {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'America/New_York', weekday: 'short',
+                    hour: 'numeric', minute: 'numeric', hour12: false
+                }).formatToParts(now);
+                const get = t => (parts.find(x => x.type === t) || {}).value;
+                const wd = get('weekday');
+                if (wd === 'Sat' || wd === 'Sun') return false;
+                // 部分瀏覽器午夜會回 '24'，取模歸零
+                const mins = (parseInt(get('hour'), 10) % 24) * 60 + parseInt(get('minute'), 10);
+                return mins >= 9 * 60 + 30 && mins < 16 * 60;   // 09:30–16:00 ET
+            } catch (e) {
+                return true;   // 判斷不了就照原本的頻率走，不要讓資料停更
+            }
+        }
+
+        function scheduleNextRefresh() {
+            const open = isUSMarketOpen();
+            setTimeout(async () => {
+                try { await refreshLiveData(); } catch (e) { console.error(e); }
+                scheduleNextRefresh();
+            }, open ? POLL_OPEN_MS : POLL_CLOSED_MS);
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             refreshLiveData();
-            setInterval(refreshLiveData, 300000);
+            scheduleNextRefresh();
         });
     </script>
 </body>
