@@ -1,44 +1,5 @@
 const https = require('https');
 
-function httpPost(url, data, headers = {}) {
-    return new Promise((resolve, reject) => {
-        const u = new URL(url);
-        const reqData = JSON.stringify(data);
-        const options = {
-            hostname: u.hostname,
-            port: 443,
-            path: u.pathname + u.search,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(reqData),
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                ...headers
-            }
-        };
-
-        const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
-                    return;
-                }
-                try {
-                    resolve(JSON.parse(body));
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        });
-        req.on('error', reject);
-        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
-        req.write(reqData);
-        req.end();
-    });
-}
-
 function httpGet(url, headers = {}) {
     return new Promise((resolve, reject) => {
         const u = new URL(url);
@@ -48,59 +9,90 @@ function httpGet(url, headers = {}) {
             path: u.pathname + u.search,
             method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                'Referer': 'https://www.cnn.com/markets/fear-and-greed',
-                'Origin': 'https://www.cnn.com',
-                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
                 ...headers
             }
         };
-
         const req = https.request(options, (res) => {
             let body = '';
             res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
-                    return;
-                }
-                try {
-                    resolve(JSON.parse(body));
-                } catch (e) {
-                    reject(e);
-                }
-            });
+            res.on('end', () => resolve({ statusCode: res.statusCode, body }));
         });
         req.on('error', reject);
-        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
+        req.setTimeout(10000, () => req.destroy(new Error('timeout')));
         req.end();
     });
 }
 
-function httpGetText(url, headers = {}) {
-    return new Promise((resolve, reject) => {
-        const u = new URL(url);
-        const req = https.request({
-            hostname: u.hostname,
-            port: 443,
-            path: u.pathname + u.search,
-            method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0', ...headers }
-        }, (res) => {
-            let body = '';
-            res.on('data', chunk => body += chunk);
-            res.on('end', () => {
-                if (res.statusCode < 200 || res.statusCode >= 300) {
-                    reject(new Error(`HTTP ${res.statusCode} from ${u.hostname}`));
-                    return;
-                }
-                resolve(body);
-            });
+async function fetchYahoo(symbol, fallback) {
+    try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+        const res = await httpGet(url);
+        if (res.statusCode === 200) {
+            const d = JSON.parse(res.body);
+            const price = d.chart.result[0].meta.regularMarketPrice;
+            if (price) return { value: Math.round(price * 100) / 100, source: 'Yahoo Finance v8', live: true };
+        }
+    } catch (e) {
+        console.error(`Yahoo [${symbol}] error:`, e.message);
+    }
+    return { value: fallback, source: 'fallback', live: false };
+}
+
+async function fetchCNN() {
+    try {
+        const res = await httpGet('https://production.dataviz.cnn.io/index/fearandgreed/graphdata', {
+            'Referer': 'https://www.cnn.com/markets/fear-and-greed',
+            'Origin': 'https://www.cnn.com'
         });
-        req.on('error', reject);
-        req.setTimeout(10000, () => req.destroy(new Error(`Request to ${u.hostname} timed out`)));
-        req.end();
-    });
+        if (res.statusCode === 200) {
+            const d = JSON.parse(res.body);
+            if (d.fear_and_greed && d.fear_and_greed.score) {
+                return {
+                    score: Math.round(d.fear_and_greed.score * 10) / 10,
+                    rating: d.fear_and_greed.rating,
+                    live: true
+                };
+            }
+        }
+    } catch (e) {
+        console.error('CNN error:', e.message);
+    }
+    return { score: 31.1, rating: 'fear', live: false };
+}
+
+async function fetchFredWEI() {
+    try {
+        const res = await httpGet('https://fred.stlouisfed.org/graph/fredgraph.csv?id=WEI');
+        if (res.statusCode === 200) {
+            const lines = res.body.trim().split(/\r?\n/).filter(l => /^\d{4}-\d{2}-\d{2},-?[\d.]/.test(l));
+            if (lines.length > 0) {
+                const val = parseFloat(lines[lines.length - 1].split(',')[1]);
+                if (isFinite(val)) return { value: val, source: 'FRED WEI (weekly)', live: true };
+            }
+        }
+    } catch (e) {
+        console.error('FRED WEI error:', e.message);
+    }
+    return { value: 2.15, source: 'fallback', live: false };
+}
+
+async function fetchAAII() {
+    try {
+        const res = await httpGet('https://www.aaii.com/sentimentsurvey');
+        if (res.statusCode === 200) {
+            const text = res.body.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+            const m = text.match(/Bull[^\d+\-]*Bear[^\d+\-]*Spread[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)/i);
+            if (m) {
+                const val = parseFloat(m[1]);
+                if (isFinite(val)) return { value: val, source: 'AAII weekly survey', live: true };
+            }
+        }
+    } catch (e) {
+        console.error('AAII error:', e.message);
+    }
+    return { value: 11.4, source: 'fallback', live: false };
 }
 
 exports.handler = async function(event, context) {
@@ -110,206 +102,85 @@ exports.handler = async function(event, context) {
         'Content-Type': 'application/json; charset=utf-8'
     };
 
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: corsHeaders, body: '' };
+    }
+
     try {
-        // 1. Fetch TradingView Official API Server-to-Server
-        const tvPayload = {
-            symbols: {
-                tickers: [
-                    "NASDAQ:QQQ",
-                    "AMEX:SPY",
-                    "CBOE:VIX",
-                    "CBOE:VVIX",
-                    "CBOE:SKEW",
-                    "TVC:DXY",
-                    "AMEX:HYG",
-                    "AMEX:LQD",
-                    "TVC:US10Y",
-                    "TVC:US02Y"
-                ]
-            },
-            columns: ["name", "close", "change"]
-        };
+        const [
+            qqqR, spyR, vixR, dxyR, hygR, lqdR,
+            us10yR, us02yR, vvixR, skewR,
+            cnnR, weiR, aaiiR
+        ] = await Promise.all([
+            fetchYahoo('QQQ',       708.69),
+            fetchYahoo('SPY',       757.83),
+            fetchYahoo('^VIX',      17.84),
+            fetchYahoo('DX-Y.NYB',  99.09),
+            fetchYahoo('HYG',       78.62),
+            fetchYahoo('LQD',      104.36),
+            fetchYahoo('^TNX',       4.96),
+            fetchYahoo('^IRX',       4.59),
+            fetchYahoo('^VVIX',    102.66),
+            fetchYahoo('^SKEW',    147.02),
+            fetchCNN(),
+            fetchFredWEI(),
+            fetchAAII()
+        ]);
 
-        let tvData = {};
-        let tradingViewError = null;
-        try {
-            const tvRes = await httpPost("https://scanner.tradingview.com/global/scan", tvPayload);
-            if (tvRes && tvRes.data) {
-                tvRes.data.forEach(item => {
-                    if (item.s && item.d && item.d.length > 1) {
-                        tvData[item.s] = Math.round(item.d[1] * 100) / 100;
-                    }
-                });
-            }
-        } catch (e) {
-            tradingViewError = e.message;
-            console.error("TradingView server fetch error:", e.message);
-        }
+        const qqq   = qqqR.value,   spy    = spyR.value;
+        const vix   = vixR.value,   dxy    = dxyR.value;
+        const hyg   = hygR.value,   lqd    = lqdR.value;
+        const us10y = us10yR.value, us02y  = us02yR.value;
+        const vvix  = vvixR.value,  skew   = skewR.value;
 
-        // 2. Fetch CNN Official Fear & Greed API Server-to-Server
-        let cnnScore = 33.3;
-        let cnnRating = "fear";
-        let cnnLive = false;
-        let cnnError = null;
-        try {
-            const cnnRes = await httpGet("https://production.dataviz.cnn.io/index/fearandgreed/graphdata", {
-                'Referer': 'https://www.cnn.com/markets/fear-and-greed',
-                'Origin': 'https://www.cnn.com'
-            });
-            if (cnnRes && cnnRes.fear_and_greed && cnnRes.fear_and_greed.score) {
-                cnnScore = Math.round(cnnRes.fear_and_greed.score * 10) / 10;
-                cnnRating = cnnRes.fear_and_greed.rating;
-                cnnLive = true;
-            }
-        } catch (e) {
-            cnnError = e.message;
-            console.error("CNN server fetch error:", e.message);
-        }
+        const yieldSpread   = Math.round((us10y - us02y) * 100) / 100;
+        const hygLqdRatio   = lqd > 0 ? Math.round((hyg / lqd) * 1000) / 1000 : 0.753;
+        const vvixVixRatio  = vix > 0 ? Math.round((vvix / vix) * 100) / 100 : 6.0;
+        const qqq_60ema     = 708.75;
+        const qqqDeduct     = Math.round(((qqq - qqq_60ema) / qqq_60ema) * 10000) / 100;
+        const spy_60ema     = 755.28;
+        const spyDeduct     = Math.round(((spy - spy_60ema) / spy_60ema) * 10000) / 100;
 
-        // 3. AAII publishes its Bull-Bear spread weekly. The current result is
-        // public on its official survey page; no member credential is stored here.
-        let aaiiSpread = 11.4;
-        let aaiiLive = false;
-        let aaiiError = null;
-        try {
-            const html = await httpGetText('https://www.aaii.com/sentimentsurvey');
-            const text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-            const match = text.match(/Bull[–-]Bear Spread:\s*([+−–-]?\d+(?:\.\d+)?)\s*pp/i);
-            if (!match) throw new Error('AAII Bull-Bear spread was not found in the response');
-            aaiiSpread = Number.parseFloat(match[1].replace('−', '-').replace('–', '-'));
-            aaiiLive = Number.isFinite(aaiiSpread);
-            if (!aaiiLive) throw new Error('AAII returned an invalid Bull-Bear spread');
-        } catch (e) {
-            aaiiError = e.message;
-            console.error('AAII fetch error:', e.message);
-        }
+        const liveCount = [qqqR, spyR, vixR, dxyR, hygR, lqdR, us10yR, us02yR, vvixR, skewR,
+                           { live: cnnR.live }, weiR, aaiiR].filter(r => r.live).length;
 
-        // 4. FRED exposes the Dallas Fed WEI series as a public CSV download.
-        let weiVal = 2.15;
-        let weiLive = false;
-        let weiError = null;
-        try {
-            const csv = await httpGetText('https://fred.stlouisfed.org/graph/fredgraph.csv?id=WEI');
-            const latest = csv.trim().split(/\r?\n/).reverse().find(line => /^\d{4}-\d{2}-\d{2},-?\d/.test(line));
-            if (!latest) throw new Error('No WEI observation was found in the FRED response');
-            const value = Number.parseFloat(latest.split(',')[1]);
-            if (!Number.isFinite(value)) throw new Error('FRED returned an invalid WEI observation');
-            weiVal = value;
-            weiLive = true;
-        } catch (e) {
-            weiError = e.message;
-            console.error('WEI fetch error:', e.message);
-        }
-
-        // Extract Values & Calculations
-        const fromTradingView = (ticker, fallback) => {
-            const live = Number.isFinite(tvData[ticker]);
-            return { value: live ? tvData[ticker] : fallback, source: live ? 'TradingView' : 'fallback', live };
-        };
-        const qqqResult = fromTradingView('NASDAQ:QQQ', 708.69);
-        const spyResult = fromTradingView('AMEX:SPY', 757.83);
-        const vixResult = fromTradingView('CBOE:VIX', 17.84);
-        const dxyResult = fromTradingView('TVC:DXY', 99.09);
-        const hygResult = fromTradingView('AMEX:HYG', 78.62);
-        const lqdResult = fromTradingView('AMEX:LQD', 104.36);
-        const us10yResult = fromTradingView('TVC:US10Y', 4.96);
-        const us02yResult = fromTradingView('TVC:US02Y', 4.59);
-        const vvixResult = fromTradingView('CBOE:VVIX', 102.66);
-        const skewResult = fromTradingView('CBOE:SKEW', 147.02);
-        const qqq = qqqResult.value;
-        const spy = spyResult.value;
-        const vix = vixResult.value;
-        const dxy = dxyResult.value;
-        const hyg = hygResult.value;
-        const lqd = lqdResult.value;
-        const us10y = us10yResult.value;
-        const us02y = us02yResult.value;
-        const vvix = vvixResult.value;
-        const skew = skewResult.value;
-
-        const yieldSpread = Math.round((us10y - us02y) * 100) / 100;
-        const hygLqdRatio = Math.round((hyg / lqd) * 1000) / 1000;
-        const vvixVixRatio = Math.round((vvix / vix) * 100) / 100;
-
-        const qqq_60ema = 708.75;
-        const qqqDeduct = Math.round(((qqq - qqq_60ema) / qqq_60ema) * 10000) / 100;
-        const spy_60ema = 755.28;
-        const spyDeduct = Math.round(((spy - spy_60ema) / spy_60ema) * 10000) / 100;
-
-        const now = new Date();
-        const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
-
-        const responsePayload = {
-            status: "success",
-            source: "backend-serverless-primary-publishers",
-            updated_at: timestamp,
-            diagnostics: {
-                providers: {
-                    tradingview: {
-                        status: Object.keys(tvData).length ? 'ok' : 'failed',
-                        received: Object.keys(tvData).length,
-                        expected: 10,
-                        error: tradingViewError
-                    },
-                    cnn: {
-                        status: cnnLive ? 'ok' : 'failed',
-                        error: cnnError
-                    },
-                    aaii: {
-                        status: aaiiLive ? 'ok' : 'failed',
-                        frequency: 'weekly',
-                        error: aaiiError
-                    },
-                    wei: {
-                        status: weiLive ? 'ok' : 'failed',
-                        frequency: 'weekly',
-                        error: weiError
-                    }
-                },
-                indicators: {
-                    qqq: qqqResult, spy: spyResult, vix: vixResult, dxy: dxyResult,
-                    hyg: hygResult, lqd: lqdResult, us10y: us10yResult, us02y: us02yResult,
-                    cnnScore: { value: cnnScore, source: cnnLive ? 'CNN Fear & Greed' : 'fallback', live: cnnLive },
-                    vvix: vvixResult,
-                    skew: skewResult,
-                    aaiiSpread: { value: aaiiSpread, source: aaiiLive ? 'AAII weekly survey' : 'fallback', live: aaiiLive },
-                    weiVal: { value: weiVal, source: weiLive ? 'FRED WEI weekly series' : 'fallback', live: weiLive }
-                }
-            },
-            data: {
-                qqq,
-                spy,
-                vix,
-                dxy,
-                hyg,
-                lqd,
-                us10y,
-                us02y,
-                vvix,
-                skew,
-                cnnScore,
-                cnnRating,
-                yieldSpread,
-                hygLqdRatio,
-                vvixVixRatio,
-                qqqDeduct,
-                spyDeduct,
-                aaiiSpread,
-                weiVal
-            }
-        };
+        const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
         return {
             statusCode: 200,
             headers: corsHeaders,
-            body: JSON.stringify(responsePayload)
+            body: JSON.stringify({
+                status: 'success',
+                source: `Yahoo v8 + CNN + FRED (${liveCount}/13 live)`,
+                updated_at: timestamp,
+                diagnostics: {
+                    indicators: {
+                        qqq: qqqR, spy: spyR, vix: vixR, dxy: dxyR,
+                        hyg: hygR, lqd: lqdR, us10y: us10yR, us02y: us02yR,
+                        vvix: vvixR, skew: skewR,
+                        cnnScore: { value: cnnR.score, source: cnnR.live ? 'CNN Fear & Greed' : 'fallback', live: cnnR.live },
+                        aaiiSpread: aaiiR,
+                        weiVal: weiR
+                    }
+                },
+                data: {
+                    qqq, spy, vix, dxy, hyg, lqd,
+                    us10y, us02y, vvix, skew,
+                    cnnScore: cnnR.score,
+                    cnnRating: cnnR.rating,
+                    yieldSpread, hygLqdRatio, vvixVixRatio,
+                    qqqDeduct, spyDeduct,
+                    aaiiSpread: aaiiR.value,
+                    weiVal: weiR.value
+                }
+            })
         };
 
     } catch (err) {
         return {
             statusCode: 500,
             headers: corsHeaders,
-            body: JSON.stringify({ status: "error", message: err.message })
+            body: JSON.stringify({ status: 'error', message: err.message })
         };
     }
 };
