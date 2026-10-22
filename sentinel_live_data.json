@@ -1,107 +1,107 @@
 {
     "status": "success",
-    "source": "Yahoo v8 + TradingView + CNN + FRED/AAII (14/15 live)",
-    "updated_at": "2026-10-21 23:54:49",
+    "source": "Yahoo v8 + TradingView + CNN + FRED/AAII (15/15 live)",
+    "updated_at": "2026-10-22 23:53:42",
     "diagnostics": {
         "indicators": {
             "cnnScore": {
-                "value": 31.4,
+                "value": 19.8,
                 "live": true,
                 "source": "CNN curl_cffi"
             },
             "qqq": {
-                "value": 725.2,
+                "value": 704.47,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "spy": {
-                "value": 773.09,
+                "value": 763.96,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "vix": {
-                "value": 16.68,
+                "value": 19.03,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "dxy": {
-                "value": 101.68,
+                "value": 101.56,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "hyg": {
-                "value": 76.98,
+                "value": 77.1,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "lqd": {
-                "value": 103.21,
+                "value": 104.28,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "us10y": {
-                "value": 5.12,
+                "value": 4.96,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "us02y": {
-                "value": 4.81,
+                "value": 4.65,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "vvix": {
-                "value": 94.55,
+                "value": 107.94,
                 "live": true,
                 "source": "Yahoo Finance v8"
             },
             "skew": {
-                "value": 150.36,
+                "value": 152.39,
                 "live": true,
                 "source": "Yahoo Finance v8"
             },
             "qqq60ema": {
-                "value": 724.7,
+                "value": 724.04,
                 "live": true,
                 "source": "Yahoo 60EMA (live)"
             },
             "spy60ema": {
-                "value": 764.2,
+                "value": 764.19,
                 "live": true,
                 "source": "Yahoo 60EMA (live)"
             },
             "weiVal": {
-                "value": 3.05,
-                "live": false,
-                "source": "上次成功值 (2026-10-20 23:38:56)"
+                "value": 3.33,
+                "live": true,
+                "source": "FRED WEI (2026-10-17)"
             },
             "aaiiSpread": {
-                "value": -2.9,
+                "value": -8.9,
                 "live": true,
-                "source": "AAII survey (October 14, 2026)"
+                "source": "AAII survey (October 21, 2026)"
             }
         }
     },
     "data": {
-        "qqq": 725.2,
-        "spy": 773.09,
-        "vix": 16.68,
-        "dxy": 101.68,
-        "hyg": 76.98,
-        "lqd": 103.21,
-        "us10y": 5.12,
-        "us02y": 4.81,
-        "vvix": 94.55,
-        "skew": 150.36,
-        "cnnScore": 31.4,
-        "cnnRating": "fear",
+        "qqq": 704.47,
+        "spy": 763.96,
+        "vix": 19.03,
+        "dxy": 101.56,
+        "hyg": 77.1,
+        "lqd": 104.28,
+        "us10y": 4.96,
+        "us02y": 4.65,
+        "vvix": 107.94,
+        "skew": 152.39,
+        "cnnScore": 19.8,
+        "cnnRating": "extreme fear",
         "yieldSpread": 0.31,
-        "hygLqdRatio": 0.746,
+        "hygLqdRatio": 0.739,
         "vvixVixRatio": 5.67,
-        "qqq60ema": 724.7,
-        "spy60ema": 764.2,
-        "qqqDeduct": 0.07,
-        "spyDeduct": 1.16,
-        "aaiiSpread": -2.9,
-        "weiVal": 3.05
+        "qqq60ema": 724.04,
+        "spy60ema": 764.19,
+        "qqqDeduct": -2.7,
+        "spyDeduct": -0.03,
+        "aaiiSpread": -8.9,
+        "weiVal": 3.33
     }
 }
