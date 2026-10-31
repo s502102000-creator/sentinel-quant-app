@@ -1,71 +1,71 @@
 {
     "status": "success",
     "source": "Yahoo v8 + TradingView + CNN + FRED/AAII (15/15 live)",
-    "updated_at": "2026-10-30 00:38:22",
+    "updated_at": "2026-10-31 00:26:52",
     "diagnostics": {
         "indicators": {
             "cnnScore": {
-                "value": 34.6,
+                "value": 26.2,
                 "live": true,
                 "source": "CNN curl_cffi"
             },
             "qqq": {
-                "value": 715.34,
+                "value": 690.49,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "spy": {
-                "value": 769.36,
+                "value": 755.72,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "vix": {
-                "value": 17.2,
+                "value": 19.42,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "dxy": {
-                "value": 101.84,
+                "value": 101.96,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "hyg": {
-                "value": 77.58,
+                "value": 77.43,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "lqd": {
-                "value": 104.22,
+                "value": 104.27,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "us10y": {
-                "value": 4.92,
+                "value": 4.93,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "us02y": {
-                "value": 4.58,
+                "value": 4.59,
                 "live": true,
                 "source": "TradingView Scanner"
             },
             "vvix": {
-                "value": 98.01,
+                "value": 106.43,
                 "live": true,
                 "source": "Yahoo Finance v8"
             },
             "skew": {
-                "value": 151.03,
+                "value": 149.76,
                 "live": true,
                 "source": "Yahoo Finance v8"
             },
             "qqq60ema": {
-                "value": 723.06,
+                "value": 722.8,
                 "live": true,
                 "source": "Yahoo 60EMA (live)"
             },
             "spy60ema": {
-                "value": 764.54,
+                "value": 764.7,
                 "live": true,
                 "source": "Yahoo 60EMA (live)"
             },
@@ -82,25 +82,25 @@
         }
     },
     "data": {
-        "qqq": 715.34,
-        "spy": 769.36,
-        "vix": 17.2,
-        "dxy": 101.84,
-        "hyg": 77.58,
-        "lqd": 104.22,
-        "us10y": 4.92,
-        "us02y": 4.58,
-        "vvix": 98.01,
-        "skew": 151.03,
-        "cnnScore": 34.6,
+        "qqq": 690.49,
+        "spy": 755.72,
+        "vix": 19.42,
+        "dxy": 101.96,
+        "hyg": 77.43,
+        "lqd": 104.27,
+        "us10y": 4.93,
+        "us02y": 4.59,
+        "vvix": 106.43,
+        "skew": 149.76,
+        "cnnScore": 26.2,
         "cnnRating": "fear",
         "yieldSpread": 0.34,
-        "hygLqdRatio": 0.744,
-        "vvixVixRatio": 5.7,
-        "qqq60ema": 723.06,
-        "spy60ema": 764.54,
-        "qqqDeduct": -1.07,
-        "spyDeduct": 0.63,
+        "hygLqdRatio": 0.743,
+        "vvixVixRatio": 5.48,
+        "qqq60ema": 722.8,
+        "spy60ema": 764.7,
+        "qqqDeduct": -4.47,
+        "spyDeduct": -1.17,
         "aaiiSpread": -3.6,
         "weiVal": 2.98
     }
